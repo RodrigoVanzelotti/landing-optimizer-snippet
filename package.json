@@ -1,0 +1,30 @@
+{
+  "name": "@landing-optimizer/snippet",
+  "version": "0.1.0",
+  "description": "Landing Optimizer public SDK — async, privacy-preserving analytics + safe DOM experiment overlay.",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "sideEffects": true,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint \"src/**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "eslint": "^8.57.0",
+    "jsdom": "^24.1.0",
+    "tsup": "^8.1.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.6.0"
+  }
+}
