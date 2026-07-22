@@ -88,7 +88,7 @@ export function isSafeSelector(selector: string): boolean {
   }
   // No attribute selectors, pseudo-classes, grouping, or JS-ish characters.
   // `>` `+` `~` are permitted as combinators; `<` stays blocked.
-  if (/[\[\](){}<'"`;:,]/.test(selector)) return false;
+  if (/[[\](){}<'"`;:,]/.test(selector)) return false;
   return SAFE_SELECTOR.test(selector.trim());
 }
 
