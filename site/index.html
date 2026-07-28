@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landing Optimizer - local test</title>
+    <script>
+        window.__LO_CONFIG__ = {
+            siteId: '019f8ca1-9411-7df3-b274-ac6fa8ace7e9',
+            ingestKey: 'ik_2CaMh8DDoCVFSPwnobtJCPdI',
+            publicKey: 'BUmVcvSRDLTUteqLmW4Rxs9YWJoCQutsLIHHsd5DSPk=',
+            sdkUrl: 'http://localhost:4000/lo.js',
+            ingestUrl: 'http://localhost:3001/v1/events',
+            configUrl: 'http://localhost:3001/v1/config',
+        };
+        (function (w, d) {
+            w.LandingOptimizer = w.LandingOptimizer || { q: [],
+                track: function() { this.q.push(["track",[].slice.call(arguments)]); },
+                conversion: function(){ this.q.push(["conversion",[].slice.call(arguments)]); },
+                identifyCompanyContext: function(){ this.q.push(["identifyCompanyContext",[].slice.call(arguments)]); },
+            };
+            var c = w.__LO_CONFIG__, s = d.createElement("script");
+            s.async = true; s.src = c.sdkUrl
+            s.setAttribute("data-site-id", c.siteId);
+            s.setAttribute("data-ingest-key", c.ingestKey);
+            s.setAttribute("data-public-key", c.publicKey);
+            s.setAttribute("data-ingest-url", c.ingestUrl);
+            s.setAttribute("data-config-url", c.configUrl);
+            s.setAttribute("debug", "true");
+            var f = d.getElementsByTagName("script")[0];
+            f && f.parentNode ? f.parentNode.insertBefore(s, f) : (d.head||d.documentElement).appendChild(s);
+        })(window, document);
+    </script>
+</head>
+<body style="min-height:2200px; font-family:sans-serif">
+    <h1>Landing Optimizer - local test</h1>
+    <p>This is a simple test page for the Landing Optimizer.</p>
+    <button id="cta">Sign Up</button>
+    <form>
+        <input name="q" placeholder="Type here..." /><button type="submit">Go</button>
+    </form>
+    <p style="margin-top:1800px">Scroll target (generates scroll_depth events)</p>
+    <script>
+        document.getElementById('cta').addEventListener('click', function() {
+            window.LandingOptimizer.conversion('signup', { value: 1 });
+        });
+    </script>
+</body>
+</html>

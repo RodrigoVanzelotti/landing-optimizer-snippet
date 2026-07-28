@@ -1,0 +1,2263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <meta
+    name="description"
+    content="A modern, responsive landing page for your product, service, or startup."
+  />
+
+  <title>Launchly — Build Better, Faster</title>
+
+  <style>
+    :root {
+      --color-background: #ffffff;
+      --color-background-secondary: #f7f8fc;
+      --color-surface: #ffffff;
+      --color-text: #182033;
+      --color-text-muted: #667085;
+      --color-primary: #635bff;
+      --color-primary-dark: #4e46d8;
+      --color-border: #e4e7ec;
+      --color-success: #12b76a;
+      --color-dark: #101828;
+      --shadow-small: 0 4px 14px rgba(16, 24, 40, 0.06);
+      --shadow-medium: 0 16px 40px rgba(16, 24, 40, 0.1);
+      --border-radius-small: 10px;
+      --border-radius-medium: 18px;
+      --border-radius-large: 28px;
+      --container-width: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--color-background);
+      color: var(--color-text);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      line-height: 1.6;
+    }
+
+    body.menu-open {
+      overflow: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    img,
+    svg {
+      display: block;
+      max-width: 100%;
+    }
+
+    .container {
+      width: min(calc(100% - 40px), var(--container-width));
+      margin-inline: auto;
+    }
+
+    .section {
+      padding: 96px 0;
+    }
+
+    .section-secondary {
+      background: var(--color-background-secondary);
+    }
+
+    .section-header {
+      max-width: 680px;
+      margin: 0 auto 56px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      color: var(--color-primary);
+      font-size: 0.875rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--color-primary);
+      border-radius: 50%;
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: var(--color-dark);
+      line-height: 1.15;
+    }
+
+    h1 {
+      max-width: 780px;
+      margin: 0 auto;
+      font-size: clamp(2.75rem, 7vw, 5.25rem);
+      letter-spacing: -0.055em;
+    }
+
+    h2 {
+      margin-bottom: 18px;
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      letter-spacing: -0.04em;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+    }
+
+    p {
+      color: var(--color-text-muted);
+    }
+
+    .section-description {
+      font-size: 1.1rem;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 22px;
+      border: 1px solid transparent;
+      border-radius: var(--border-radius-small);
+      font-weight: 700;
+      transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        color 160ms ease,
+        transform 160ms ease,
+        box-shadow 160ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+    }
+
+    .button-primary {
+      background: var(--color-primary);
+      color: #ffffff;
+      box-shadow: 0 10px 24px rgba(99, 91, 255, 0.24);
+    }
+
+    .button-primary:hover {
+      background: var(--color-primary-dark);
+    }
+
+    .button-secondary {
+      background: #ffffff;
+      border-color: var(--color-border);
+      color: var(--color-dark);
+    }
+
+    .button-secondary:hover {
+      border-color: #c7cdd8;
+      box-shadow: var(--shadow-small);
+    }
+
+    .button-large {
+      min-height: 56px;
+      padding-inline: 28px;
+    }
+
+    .header {
+      position: sticky;
+      z-index: 100;
+      top: 0;
+      background: rgba(255, 255, 255, 0.88);
+      border-bottom: 1px solid rgba(228, 231, 236, 0.9);
+      backdrop-filter: blur(14px);
+    }
+
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 76px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      background: linear-gradient(
+        135deg,
+        var(--color-primary),
+        #9b8cff
+      );
+      border-radius: 11px;
+      color: #ffffff;
+      font-size: 1rem;
+    }
+
+    .nav-content {
+      display: flex;
+      align-items: center;
+      gap: 34px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-link {
+      color: var(--color-text-muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: color 160ms ease;
+    }
+
+    .nav-link:hover {
+      color: var(--color-dark);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mobile-menu-button {
+      display: none;
+      width: 44px;
+      height: 44px;
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      color: var(--color-dark);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 112px 0 88px;
+      text-align: center;
+    }
+
+    .hero::before {
+      position: absolute;
+      z-index: -2;
+      top: -300px;
+      left: 50%;
+      width: 900px;
+      height: 700px;
+      background: radial-gradient(
+        circle,
+        rgba(99, 91, 255, 0.18) 0%,
+        rgba(99, 91, 255, 0.04) 48%,
+        transparent 72%
+      );
+      content: "";
+      transform: translateX(-50%);
+    }
+
+    .hero-grid {
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      background-image:
+        linear-gradient(
+          rgba(99, 91, 255, 0.05) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          90deg,
+          rgba(99, 91, 255, 0.05) 1px,
+          transparent 1px
+        );
+      background-position: center;
+      background-size: 54px 54px;
+      mask-image: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.7),
+        transparent 80%
+      );
+    }
+
+    .announcement {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      padding: 7px 12px 7px 8px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      color: var(--color-text-muted);
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-small);
+    }
+
+    .announcement-badge {
+      padding: 4px 9px;
+      background: rgba(99, 91, 255, 0.12);
+      border-radius: 999px;
+      color: var(--color-primary);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .hero-description {
+      max-width: 660px;
+      margin: 28px auto 0;
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 36px;
+    }
+
+    .hero-note {
+      margin-top: 16px;
+      font-size: 0.875rem;
+    }
+
+    .dashboard-wrapper {
+      position: relative;
+      max-width: 1040px;
+      margin: 72px auto 0;
+    }
+
+    .dashboard-glow {
+      position: absolute;
+      z-index: -1;
+      inset: 12% 10% -8%;
+      background: rgba(99, 91, 255, 0.2);
+      filter: blur(70px);
+    }
+
+    .dashboard {
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--border-radius-medium);
+      box-shadow: var(--shadow-medium);
+      text-align: left;
+    }
+
+    .dashboard-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 54px;
+      padding: 0 18px;
+      background: #fcfcfd;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 7px;
+    }
+
+    .window-dot {
+      width: 11px;
+      height: 11px;
+      background: #d0d5dd;
+      border-radius: 50%;
+    }
+
+    .dashboard-url {
+      width: min(44%, 360px);
+      padding: 6px 14px;
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: 7px;
+      color: #98a2b3;
+      font-size: 0.75rem;
+      text-align: center;
+    }
+
+    .dashboard-body {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      min-height: 500px;
+    }
+
+    .dashboard-sidebar {
+      padding: 24px 16px;
+      background: #101828;
+      color: #ffffff;
+    }
+
+    .dashboard-sidebar-title {
+      margin-bottom: 26px;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: #98a2b3;
+      font-size: 0.83rem;
+      font-weight: 600;
+    }
+
+    .sidebar-item.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
+    .sidebar-icon {
+      width: 9px;
+      height: 9px;
+      border: 2px solid currentColor;
+      border-radius: 3px;
+    }
+
+    .dashboard-content {
+      padding: 28px;
+      background: #f8fafc;
+    }
+
+    .dashboard-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+
+    .dashboard-heading-title {
+      color: var(--color-dark);
+      font-size: 1.3rem;
+      font-weight: 800;
+    }
+
+    .dashboard-heading-button {
+      padding: 8px 13px;
+      background: var(--color-primary);
+      border-radius: 7px;
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .stat-card,
+    .chart-card,
+    .activity-card {
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(16, 24, 40, 0.03);
+    }
+
+    .stat-card {
+      padding: 18px;
+    }
+
+    .stat-label {
+      margin-bottom: 8px;
+      color: var(--color-text-muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .stat-value {
+      color: var(--color-dark);
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+
+    .stat-change {
+      margin-top: 6px;
+      color: var(--color-success);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .dashboard-lower-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 18px;
+    }
+
+    .chart-card,
+    .activity-card {
+      padding: 20px;
+    }
+
+    .card-label {
+      margin-bottom: 20px;
+      color: var(--color-dark);
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+
+    .chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      height: 190px;
+      padding-top: 15px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .chart-bar {
+      flex: 1;
+      min-width: 8px;
+      background: linear-gradient(
+        to top,
+        var(--color-primary),
+        #a99fff
+      );
+      border-radius: 5px 5px 0 0;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 0;
+      border-bottom: 1px solid #f1f3f5;
+    }
+
+    .activity-item:last-child {
+      border-bottom: 0;
+    }
+
+    .activity-avatar {
+      display: grid;
+      flex: 0 0 30px;
+      height: 30px;
+      place-items: center;
+      background: #eef0ff;
+      border-radius: 50%;
+      color: var(--color-primary);
+      font-size: 0.7rem;
+      font-weight: 800;
+    }
+
+    .activity-copy {
+      color: var(--color-text-muted);
+      font-size: 0.7rem;
+    }
+
+    .activity-copy strong {
+      display: block;
+      color: var(--color-dark);
+      font-size: 0.74rem;
+    }
+
+    .trusted {
+      padding: 42px 0;
+      border-top: 1px solid var(--color-border);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .trusted-label {
+      margin-bottom: 28px;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .logo-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      align-items: center;
+      gap: 28px;
+    }
+
+    .company-logo {
+      color: #98a2b3;
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      text-align: center;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .feature-card {
+      padding: 30px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--border-radius-medium);
+      transition:
+        transform 180ms ease,
+        box-shadow 180ms ease,
+        border-color 180ms ease;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(99, 91, 255, 0.35);
+      box-shadow: var(--shadow-medium);
+      transform: translateY(-5px);
+    }
+
+    .feature-icon {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 22px;
+      place-items: center;
+      background: rgba(99, 91, 255, 0.1);
+      border-radius: 13px;
+      color: var(--color-primary);
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+
+    .feature-card h3 {
+      margin-bottom: 12px;
+    }
+
+    .feature-card p {
+      font-size: 0.95rem;
+    }
+
+    .process-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 36px;
+      counter-reset: step;
+    }
+
+    .process-step {
+      position: relative;
+      text-align: center;
+    }
+
+    .process-number {
+      display: grid;
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 20px;
+      place-items: center;
+      background: var(--color-primary);
+      border-radius: 50%;
+      color: #ffffff;
+      font-weight: 800;
+      box-shadow: 0 10px 24px rgba(99, 91, 255, 0.24);
+    }
+
+    .process-step h3 {
+      margin-bottom: 10px;
+    }
+
+    .process-step p {
+      max-width: 300px;
+      margin-inline: auto;
+      font-size: 0.95rem;
+    }
+
+    .testimonial {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 48px;
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--border-radius-large);
+      box-shadow: var(--shadow-medium);
+      text-align: center;
+    }
+
+    .testimonial-stars {
+      margin-bottom: 22px;
+      color: #fdb022;
+      font-size: 1.2rem;
+      letter-spacing: 4px;
+    }
+
+    .testimonial-quote {
+      color: var(--color-dark);
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.45;
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .testimonial-avatar {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      background: var(--color-primary);
+      border-radius: 50%;
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    .testimonial-author-info {
+      text-align: left;
+    }
+
+    .testimonial-author-info strong {
+      display: block;
+      color: var(--color-dark);
+      font-size: 0.95rem;
+    }
+
+    .testimonial-author-info span {
+      color: var(--color-text-muted);
+      font-size: 0.83rem;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      align-items: stretch;
+      gap: 24px;
+    }
+
+    .pricing-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 34px;
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--border-radius-medium);
+    }
+
+    .pricing-card.featured {
+      border: 2px solid var(--color-primary);
+      box-shadow: var(--shadow-medium);
+      transform: translateY(-10px);
+    }
+
+    .pricing-badge {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      padding: 6px 13px;
+      background: var(--color-primary);
+      border-radius: 0 0 10px 10px;
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 800;
+      transform: translateX(-50%);
+    }
+
+    .pricing-name {
+      margin-bottom: 8px;
+      color: var(--color-dark);
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .pricing-description {
+      min-height: 52px;
+      font-size: 0.9rem;
+    }
+
+    .pricing-price {
+      margin: 24px 0;
+      color: var(--color-dark);
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.045em;
+    }
+
+    .pricing-price span {
+      color: var(--color-text-muted);
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: normal;
+    }
+
+    .pricing-features {
+      display: grid;
+      gap: 13px;
+      margin-bottom: 30px;
+      list-style: none;
+    }
+
+    .pricing-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+    }
+
+    .pricing-check {
+      color: var(--color-success);
+      font-weight: 900;
+    }
+
+    .pricing-card .button {
+      width: 100%;
+      margin-top: auto;
+    }
+
+    .faq-list {
+      display: grid;
+      max-width: 820px;
+      margin-inline: auto;
+      gap: 14px;
+    }
+
+    .faq-item {
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+    }
+
+    .faq-question {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 21px 24px;
+      background: transparent;
+      border: 0;
+      color: var(--color-dark);
+      font-weight: 750;
+      text-align: left;
+    }
+
+    .faq-icon {
+      flex: 0 0 auto;
+      color: var(--color-primary);
+      font-size: 1.3rem;
+      transition: transform 180ms ease;
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition:
+        max-height 250ms ease,
+        padding 250ms ease;
+    }
+
+    .faq-answer p {
+      padding: 0 24px 22px;
+      font-size: 0.95rem;
+    }
+
+    .faq-item.open .faq-answer {
+      max-height: 240px;
+    }
+
+    .faq-item.open .faq-icon {
+      transform: rotate(45deg);
+    }
+
+    .cta {
+      padding: 96px 0;
+    }
+
+    .cta-card {
+      position: relative;
+      overflow: hidden;
+      padding: 72px 40px;
+      background: var(--color-dark);
+      border-radius: var(--border-radius-large);
+      text-align: center;
+    }
+
+    .cta-card::before,
+    .cta-card::after {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      background: var(--color-primary);
+      border-radius: 50%;
+      content: "";
+      filter: blur(90px);
+      opacity: 0.35;
+    }
+
+    .cta-card::before {
+      top: -200px;
+      left: -100px;
+    }
+
+    .cta-card::after {
+      right: -120px;
+      bottom: -220px;
+    }
+
+    .cta-content {
+      position: relative;
+      z-index: 1;
+      max-width: 660px;
+      margin-inline: auto;
+    }
+
+    .cta-card h2 {
+      color: #ffffff;
+    }
+
+    .cta-card p {
+      max-width: 540px;
+      margin: 0 auto;
+      color: #cbd5e1;
+      font-size: 1.05rem;
+    }
+
+    .cta-form {
+      display: flex;
+      max-width: 520px;
+      margin: 30px auto 0;
+      gap: 10px;
+    }
+
+    .cta-input {
+      min-width: 0;
+      flex: 1;
+      min-height: 54px;
+      padding: 0 18px;
+      background: #ffffff;
+      border: 1px solid transparent;
+      border-radius: var(--border-radius-small);
+      color: var(--color-dark);
+      outline: none;
+    }
+
+    .cta-input:focus {
+      border-color: #b6b1ff;
+      box-shadow: 0 0 0 4px rgba(99, 91, 255, 0.2);
+    }
+
+    .form-message {
+      min-height: 24px;
+      margin-top: 14px;
+      color: #cbd5e1;
+      font-size: 0.9rem;
+    }
+
+    .footer {
+      padding: 64px 0 30px;
+      background: #0c111d;
+      color: #ffffff;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.5fr repeat(3, 1fr);
+      gap: 48px;
+      padding-bottom: 48px;
+    }
+
+    .footer-brand p {
+      max-width: 320px;
+      margin-top: 16px;
+      color: #98a2b3;
+      font-size: 0.9rem;
+    }
+
+    .footer-column h3 {
+      margin-bottom: 18px;
+      color: #ffffff;
+      font-size: 0.9rem;
+    }
+
+    .footer-links {
+      display: grid;
+      gap: 12px;
+      list-style: none;
+    }
+
+    .footer-link {
+      color: #98a2b3;
+      font-size: 0.9rem;
+      transition: color 160ms ease;
+    }
+
+    .footer-link:hover {
+      color: #ffffff;
+    }
+
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 28px;
+      border-top: 1px solid #1f2937;
+      color: #667085;
+      font-size: 0.85rem;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 18px;
+    }
+
+    .social-link:hover {
+      color: #ffffff;
+    }
+
+    @media (max-width: 960px) {
+      .nav-content {
+        position: fixed;
+        top: 77px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: none;
+        align-items: stretch;
+        flex-direction: column;
+        gap: 28px;
+        padding: 32px 20px;
+        background: #ffffff;
+      }
+
+      .nav-content.open {
+        display: flex;
+      }
+
+      .nav-links {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .nav-link {
+        display: block;
+        padding: 13px 0;
+        font-size: 1.05rem;
+      }
+
+      .nav-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .mobile-menu-button {
+        display: grid;
+        place-items: center;
+      }
+
+      .feature-grid,
+      .pricing-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .pricing-card.featured {
+        transform: none;
+      }
+
+      .process-grid {
+        gap: 24px;
+      }
+
+      .dashboard-body {
+        grid-template-columns: 170px 1fr;
+      }
+
+      .footer-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .container {
+        width: min(calc(100% - 28px), var(--container-width));
+      }
+
+      .section {
+        padding: 72px 0;
+      }
+
+      .hero {
+        padding: 80px 0 60px;
+      }
+
+      h1 {
+        font-size: clamp(2.5rem, 13vw, 4rem);
+      }
+
+      .hero-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .hero-actions .button {
+        width: 100%;
+      }
+
+      .dashboard-wrapper {
+        margin-top: 52px;
+      }
+
+      .dashboard-body {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .dashboard-sidebar {
+        display: none;
+      }
+
+      .dashboard-content {
+        padding: 16px;
+      }
+
+      .stat-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-lower-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .activity-card {
+        display: none;
+      }
+
+      .logo-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .company-logo:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .feature-grid,
+      .process-grid,
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .testimonial {
+        padding: 34px 22px;
+      }
+
+      .cta-card {
+        padding: 56px 22px;
+      }
+
+      .cta-form {
+        flex-direction: column;
+      }
+
+      .cta-form .button {
+        width: 100%;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .footer-bottom {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 18px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .dashboard-toolbar {
+        padding-inline: 12px;
+      }
+
+      .dashboard-url {
+        width: 58%;
+      }
+
+      .dashboard-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .logo-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .company-logo:last-child {
+        grid-column: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div class="container navbar">
+      <a
+        class="brand"
+        href="#home"
+        aria-label="Launchly home"
+      >
+        <span class="brand-mark">L</span>
+        <span>Launchly</span>
+      </a>
+
+      <nav
+        id="mobileMenu"
+        class="nav-content"
+        aria-label="Main navigation"
+      >
+        <ul class="nav-links">
+          <li>
+            <a class="nav-link" href="#features">Features</a>
+          </li>
+
+          <li>
+            <a class="nav-link" href="#how-it-works">How it works</a>
+          </li>
+
+          <li>
+            <a class="nav-link" href="#pricing">Pricing</a>
+          </li>
+
+          <li>
+            <a class="nav-link" href="#faq">FAQ</a>
+          </li>
+        </ul>
+
+        <div class="nav-actions">
+          <a class="button button-secondary" href="#login">
+            Log in
+          </a>
+
+          <a class="button button-primary" href="#get-started">
+            Get started
+          </a>
+        </div>
+      </nav>
+
+      <button
+        id="mobileMenuButton"
+        class="mobile-menu-button"
+        type="button"
+        aria-label="Open navigation menu"
+        aria-expanded="false"
+        aria-controls="mobileMenu"
+      >
+        <span id="mobileMenuIcon">☰</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section id="home" class="hero">
+      <div class="hero-grid"></div>
+
+      <div class="container">
+        <div class="announcement">
+          <span class="announcement-badge">New</span>
+          <span>Our biggest product update is now live →</span>
+        </div>
+
+        <h1>
+          Build, launch, and grow without the complexity.
+        </h1>
+
+        <p class="hero-description">
+          Launchly gives your team everything it needs to turn
+          ideas into successful products, all from one simple and
+          powerful workspace.
+        </p>
+
+        <div class="hero-actions">
+          <a
+            class="button button-primary button-large"
+            href="#get-started"
+          >
+            Start for free
+          </a>
+
+          <a
+            class="button button-secondary button-large"
+            href="#how-it-works"
+          >
+            See how it works
+          </a>
+        </div>
+
+        <p class="hero-note">
+          No credit card required · Free 14-day trial
+        </p>
+
+        <div class="dashboard-wrapper">
+          <div class="dashboard-glow"></div>
+
+          <div class="dashboard">
+            <div class="dashboard-toolbar">
+              <div class="window-controls">
+                <span class="window-dot"></span>
+                <span class="window-dot"></span>
+                <span class="window-dot"></span>
+              </div>
+
+              <div class="dashboard-url">
+                app.launchly.example
+              </div>
+
+              <div aria-hidden="true"></div>
+            </div>
+
+            <div class="dashboard-body">
+              <aside class="dashboard-sidebar">
+                <div class="dashboard-sidebar-title">
+                  Launchly
+                </div>
+
+                <div class="sidebar-item active">
+                  <span class="sidebar-icon"></span>
+                  Overview
+                </div>
+
+                <div class="sidebar-item">
+                  <span class="sidebar-icon"></span>
+                  Analytics
+                </div>
+
+                <div class="sidebar-item">
+                  <span class="sidebar-icon"></span>
+                  Projects
+                </div>
+
+                <div class="sidebar-item">
+                  <span class="sidebar-icon"></span>
+                  Customers
+                </div>
+
+                <div class="sidebar-item">
+                  <span class="sidebar-icon"></span>
+                  Settings
+                </div>
+              </aside>
+
+              <div class="dashboard-content">
+                <div class="dashboard-heading">
+                  <div class="dashboard-heading-title">
+                    Good morning, Alex
+                  </div>
+
+                  <div class="dashboard-heading-button">
+                    + New project
+                  </div>
+                </div>
+
+                <div class="stat-grid">
+                  <div class="stat-card">
+                    <div class="stat-label">Total revenue</div>
+                    <div class="stat-value">$48,290</div>
+                    <div class="stat-change">↑ 12.5%</div>
+                  </div>
+
+                  <div class="stat-card">
+                    <div class="stat-label">Active users</div>
+                    <div class="stat-value">12,840</div>
+                    <div class="stat-change">↑ 8.2%</div>
+                  </div>
+
+                  <div class="stat-card">
+                    <div class="stat-label">Conversion rate</div>
+                    <div class="stat-value">7.4%</div>
+                    <div class="stat-change">↑ 2.1%</div>
+                  </div>
+                </div>
+
+                <div class="dashboard-lower-grid">
+                  <div class="chart-card">
+                    <div class="card-label">
+                      Performance overview
+                    </div>
+
+                    <div
+                      class="chart"
+                      aria-label="Sample performance chart"
+                    >
+                      <div
+                        class="chart-bar"
+                        style="height: 38%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 55%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 47%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 68%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 61%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 83%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 74%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 93%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 79%"
+                      ></div>
+                      <div
+                        class="chart-bar"
+                        style="height: 100%"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div class="activity-card">
+                    <div class="card-label">
+                      Recent activity
+                    </div>
+
+                    <div class="activity-item">
+                      <div class="activity-avatar">JM</div>
+                      <div class="activity-copy">
+                        <strong>Jamie joined the team</strong>
+                        5 minutes ago
+                      </div>
+                    </div>
+
+                    <div class="activity-item">
+                      <div class="activity-avatar">SK</div>
+                      <div class="activity-copy">
+                        <strong>New campaign published</strong>
+                        32 minutes ago
+                      </div>
+                    </div>
+
+                    <div class="activity-item">
+                      <div class="activity-avatar">AP</div>
+                      <div class="activity-copy">
+                        <strong>Report was generated</strong>
+                        1 hour ago
+                      </div>
+                    </div>
+
+                    <div class="activity-item">
+                      <div class="activity-avatar">LC</div>
+                      <div class="activity-copy">
+                        <strong>Goal reached</strong>
+                        3 hours ago
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="trusted">
+      <div class="container">
+        <p class="trusted-label">
+          Trusted by ambitious teams around the world
+        </p>
+
+        <div class="logo-grid">
+          <div class="company-logo">Northstar</div>
+          <div class="company-logo">Vertex</div>
+          <div class="company-logo">Cloudbase</div>
+          <div class="company-logo">Lumina</div>
+          <div class="company-logo">Acme</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="container">
+        <header class="section-header">
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            Everything you need
+          </div>
+
+          <h2>
+            Powerful features without the learning curve
+          </h2>
+
+          <p class="section-description">
+            Replace scattered tools and complicated workflows with
+            one intuitive platform your entire team can use.
+          </p>
+        </header>
+
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-icon">01</div>
+            <h3>Real-time analytics</h3>
+            <p>
+              Understand your performance with live dashboards,
+              actionable metrics, and reports that are easy to
+              share.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">02</div>
+            <h3>Team collaboration</h3>
+            <p>
+              Keep conversations, tasks, files, and decisions
+              connected so everyone knows what to do next.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">03</div>
+            <h3>Smart automation</h3>
+            <p>
+              Automate repetitive work and create flexible
+              workflows that adapt to the way your business
+              operates.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">04</div>
+            <h3>Enterprise security</h3>
+            <p>
+              Protect your data with secure infrastructure,
+              role-based permissions, and industry-standard
+              controls.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">05</div>
+            <h3>Simple integrations</h3>
+            <p>
+              Connect the tools you already use and keep your
+              information synchronized across your entire stack.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">06</div>
+            <h3>Built to scale</h3>
+            <p>
+              Start small and grow confidently with infrastructure
+              designed to support teams of every size.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section
+      id="how-it-works"
+      class="section section-secondary"
+    >
+      <div class="container">
+        <header class="section-header">
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            How it works
+          </div>
+
+          <h2>
+            From idea to impact in three steps
+          </h2>
+
+          <p class="section-description">
+            Get started in minutes and bring your team, data, and
+            workflows together.
+          </p>
+        </header>
+
+        <div class="process-grid">
+          <article class="process-step">
+            <div class="process-number">1</div>
+            <h3>Create your workspace</h3>
+            <p>
+              Set up your account, invite your team, and customize
+              your workspace around your goals.
+            </p>
+          </article>
+
+          <article class="process-step">
+            <div class="process-number">2</div>
+            <h3>Connect your tools</h3>
+            <p>
+              Import existing data or integrate the services your
+              team already relies on.
+            </p>
+          </article>
+
+          <article class="process-step">
+            <div class="process-number">3</div>
+            <h3>Measure and improve</h3>
+            <p>
+              Launch your work, monitor results, and use clear
+              insights to make better decisions.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="testimonial">
+          <div class="testimonial-stars">★★★★★</div>
+
+          <blockquote class="testimonial-quote">
+            “Launchly gave us a single source of truth. Our team
+            works faster, communicates better, and finally has
+            complete visibility into what is driving growth.”
+          </blockquote>
+
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">MC</div>
+
+            <div class="testimonial-author-info">
+              <strong>Maria Chen</strong>
+              <span>Head of Growth at Northstar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section
+      id="pricing"
+      class="section section-secondary"
+    >
+      <div class="container">
+        <header class="section-header">
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            Simple pricing
+          </div>
+
+          <h2>
+            Choose a plan that grows with you
+          </h2>
+
+          <p class="section-description">
+            Start free, upgrade when you need to, and cancel at any
+            time.
+          </p>
+        </header>
+
+        <div class="pricing-grid">
+          <article class="pricing-card">
+            <div class="pricing-name">Starter</div>
+
+            <p class="pricing-description">
+              For individuals and small projects getting started.
+            </p>
+
+            <div class="pricing-price">
+              $0 <span>/ month</span>
+            </div>
+
+            <ul class="pricing-features">
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Up to 3 projects
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Basic analytics
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                One workspace
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Community support
+              </li>
+            </ul>
+
+            <a
+              class="button button-secondary"
+              href="#get-started"
+            >
+              Start for free
+            </a>
+          </article>
+
+          <article class="pricing-card featured">
+            <div class="pricing-badge">Most popular</div>
+
+            <div class="pricing-name">Professional</div>
+
+            <p class="pricing-description">
+              For growing teams that need more power and
+              flexibility.
+            </p>
+
+            <div class="pricing-price">
+              $29 <span>/ user / month</span>
+            </div>
+
+            <ul class="pricing-features">
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Unlimited projects
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Advanced analytics
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Workflow automation
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Custom integrations
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Priority support
+              </li>
+            </ul>
+
+            <a
+              class="button button-primary"
+              href="#get-started"
+            >
+              Start free trial
+            </a>
+          </article>
+
+          <article class="pricing-card">
+            <div class="pricing-name">Enterprise</div>
+
+            <p class="pricing-description">
+              For organizations requiring security, control, and
+              support.
+            </p>
+
+            <div class="pricing-price">
+              Custom
+            </div>
+
+            <ul class="pricing-features">
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Everything in Professional
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                SSO and advanced security
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Custom roles and permissions
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Dedicated account manager
+              </li>
+
+              <li class="pricing-feature">
+                <span class="pricing-check">✓</span>
+                Custom onboarding
+              </li>
+            </ul>
+
+            <a
+              class="button button-secondary"
+              href="mailto:sales@example.com"
+            >
+              Contact sales
+            </a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="section">
+      <div class="container">
+        <header class="section-header">
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            Frequently asked questions
+          </div>
+
+          <h2>
+            Everything you need to know
+          </h2>
+
+          <p class="section-description">
+            Find answers to the most common questions about the
+            platform.
+          </p>
+        </header>
+
+        <div class="faq-list">
+          <article class="faq-item">
+            <button
+              class="faq-question"
+              type="button"
+              aria-expanded="false"
+            >
+              <span>Can I try Launchly before paying?</span>
+              <span class="faq-icon">+</span>
+            </button>
+
+            <div class="faq-answer">
+              <p>
+                Yes. You can use the Starter plan for free or try
+                all Professional features during a 14-day free
+                trial. No credit card is required.
+              </p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button
+              class="faq-question"
+              type="button"
+              aria-expanded="false"
+            >
+              <span>Can I change my plan later?</span>
+              <span class="faq-icon">+</span>
+            </button>
+
+            <div class="faq-answer">
+              <p>
+                Yes. You can upgrade, downgrade, or cancel your
+                plan at any time from your account settings.
+              </p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button
+              class="faq-question"
+              type="button"
+              aria-expanded="false"
+            >
+              <span>Does Launchly integrate with other tools?</span>
+              <span class="faq-icon">+</span>
+            </button>
+
+            <div class="faq-answer">
+              <p>
+                Yes. Launchly supports popular communication,
+                analytics, storage, CRM, and development tools. You
+                can also build custom integrations through the API.
+              </p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button
+              class="faq-question"
+              type="button"
+              aria-expanded="false"
+            >
+              <span>Is my company data secure?</span>
+              <span class="faq-icon">+</span>
+            </button>
+
+            <div class="faq-answer">
+              <p>
+                Launchly uses encrypted communication, protected
+                infrastructure, regular backups, and role-based
+                access controls to help keep your data secure.
+              </p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button
+              class="faq-question"
+              type="button"
+              aria-expanded="false"
+            >
+              <span>Do you offer onboarding support?</span>
+              <span class="faq-icon">+</span>
+            </button>
+
+            <div class="faq-answer">
+              <p>
+                Professional customers receive priority support,
+                while Enterprise customers can receive customized
+                onboarding, training, and migration assistance.
+              </p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="get-started" class="cta">
+      <div class="container">
+        <div class="cta-card">
+          <div class="cta-content">
+            <h2>
+              Ready to build something great?
+            </h2>
+
+            <p>
+              Join thousands of teams using Launchly to organize
+              their work, understand their results, and grow
+              faster.
+            </p>
+
+            <form id="signupForm" class="cta-form">
+              <label
+                for="email"
+                style="
+                  position: absolute;
+                  width: 1px;
+                  height: 1px;
+                  overflow: hidden;
+                  clip: rect(0, 0, 0, 0);
+                "
+              >
+                Work email
+              </label>
+
+              <input
+                id="email"
+                class="cta-input"
+                name="email"
+                type="email"
+                placeholder="Enter your work email"
+                autocomplete="email"
+                required
+              />
+
+              <button
+                class="button button-primary"
+                type="submit"
+              >
+                Start for free
+              </button>
+            </form>
+
+            <div
+              id="formMessage"
+              class="form-message"
+              aria-live="polite"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a
+            class="brand"
+            href="#home"
+            aria-label="Launchly home"
+          >
+            <span class="brand-mark">L</span>
+            <span>Launchly</span>
+          </a>
+
+          <p>
+            A modern workspace for teams that want to move faster,
+            work smarter, and build better products.
+          </p>
+        </div>
+
+        <div class="footer-column">
+          <h3>Product</h3>
+
+          <ul class="footer-links">
+            <li>
+              <a class="footer-link" href="#features">
+                Features
+              </a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#pricing">
+                Pricing
+              </a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#how-it-works">
+                How it works
+              </a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#faq">
+                FAQ
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="footer-column">
+          <h3>Company</h3>
+
+          <ul class="footer-links">
+            <li>
+              <a class="footer-link" href="#">About</a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#">Careers</a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#">Blog</a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#">Contact</a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="footer-column">
+          <h3>Legal</h3>
+
+          <ul class="footer-links">
+            <li>
+              <a class="footer-link" href="#">
+                Privacy policy
+              </a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#">
+                Terms of service
+              </a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#">
+                Cookie policy
+              </a>
+            </li>
+
+            <li>
+              <a class="footer-link" href="#">
+                Security
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>
+          © <span id="currentYear"></span> Launchly. All rights
+          reserved.
+        </span>
+
+        <div class="social-links">
+          <a class="social-link" href="#" aria-label="LinkedIn">
+            LinkedIn
+          </a>
+
+          <a class="social-link" href="#" aria-label="X">
+            X
+          </a>
+
+          <a class="social-link" href="#" aria-label="GitHub">
+            GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const mobileMenu = document.getElementById("mobileMenu");
+    const mobileMenuButton = document.getElementById(
+      "mobileMenuButton"
+    );
+    const mobileMenuIcon = document.getElementById(
+      "mobileMenuIcon"
+    );
+    const navLinks = document.querySelectorAll(".nav-link");
+    const faqItems = document.querySelectorAll(".faq-item");
+    const signupForm = document.getElementById("signupForm");
+    const formMessage = document.getElementById("formMessage");
+    const currentYear = document.getElementById("currentYear");
+
+    function closeMobileMenu() {
+      mobileMenu.classList.remove("open");
+      document.body.classList.remove("menu-open");
+      mobileMenuButton.setAttribute("aria-expanded", "false");
+      mobileMenuButton.setAttribute(
+        "aria-label",
+        "Open navigation menu"
+      );
+      mobileMenuIcon.textContent = "☰";
+    }
+
+    function openMobileMenu() {
+      mobileMenu.classList.add("open");
+      document.body.classList.add("menu-open");
+      mobileMenuButton.setAttribute("aria-expanded", "true");
+      mobileMenuButton.setAttribute(
+        "aria-label",
+        "Close navigation menu"
+      );
+      mobileMenuIcon.textContent = "✕";
+    }
+
+    mobileMenuButton.addEventListener("click", function () {
+      const isOpen = mobileMenu.classList.contains("open");
+
+      if (isOpen) {
+        closeMobileMenu();
+      } else {
+        openMobileMenu();
+      }
+    });
+
+    navLinks.forEach(function (navLink) {
+      navLink.addEventListener("click", function () {
+        closeMobileMenu();
+      });
+    });
+
+    window.addEventListener("resize", function () {
+      if (window.innerWidth > 960) {
+        closeMobileMenu();
+      }
+    });
+
+    faqItems.forEach(function (faqItem) {
+      const questionButton =
+        faqItem.querySelector(".faq-question");
+
+      questionButton.addEventListener("click", function () {
+        const isOpen = faqItem.classList.contains("open");
+
+        faqItems.forEach(function (item) {
+          item.classList.remove("open");
+
+          const itemButton =
+            item.querySelector(".faq-question");
+
+          itemButton.setAttribute("aria-expanded", "false");
+        });
+
+        if (!isOpen) {
+          faqItem.classList.add("open");
+          questionButton.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+
+    signupForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const formData = new FormData(signupForm);
+      const email = String(formData.get("email") || "").trim();
+
+      if (!email) {
+        formMessage.textContent =
+          "Please enter a valid email address.";
+        return;
+      }
+
+      formMessage.textContent =
+        "Thanks! Your account setup link is on its way.";
+
+      signupForm.reset();
+    });
+
+    currentYear.textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
