@@ -1,0 +1,20 @@
+name: landing-optimizer-snippet
+
+services:
+  sdk:
+    build:
+      context: .
+    command: ['serve', 'dist', '-l', '4000']
+    ports:
+      - 4000:4000
+    restart: unless-stopped
+
+  demo:
+    build:
+      context: .
+    command: ['serve', 'sites/generic_landing_page', '-l', '3005']
+    ports:
+      - 3005:3005
+    depends_on:
+      - sdk
+    restart: unless-stopped
