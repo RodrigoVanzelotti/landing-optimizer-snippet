@@ -13,6 +13,34 @@
     content="A modern, responsive landing page for your product, service, or startup."
   />
 
+  <script>
+    window.__LO_CONFIG__ = {
+        siteId: '019faf81-b09f-7e59-982d-416066056fbf',
+        ingestKey: 'ik_0R_aLjLVRWaDOQIA0hARoxXD',
+        publicKey: 'wSU4AIZkPnpZccCDpM7oF3F3FlLYepvfAe3qMXlVNx0=',
+        sdkUrl: 'http://localhost:4000/lo.js',
+        ingestUrl: 'http://localhost:3001/v1/events',
+        configUrl: 'http://localhost:3001/v1/config',
+    };
+    (function (w, d) {
+        w.LandingOptimizer = w.LandingOptimizer || { q: [],
+            track: function() { this.q.push(["track",[].slice.call(arguments)]); },
+            conversion: function(){ this.q.push(["conversion",[].slice.call(arguments)]); },
+            identifyCompanyContext: function(){ this.q.push(["identifyCompanyContext",[].slice.call(arguments)]); },
+        };
+        var c = w.__LO_CONFIG__, s = d.createElement("script");
+        s.async = true; s.src = c.sdkUrl
+        s.setAttribute("data-site-id", c.siteId);
+        s.setAttribute("data-ingest-key", c.ingestKey);
+        s.setAttribute("data-public-key", c.publicKey);
+        s.setAttribute("data-ingest-url", c.ingestUrl);
+        s.setAttribute("data-config-url", c.configUrl);
+        s.setAttribute("debug", "true");
+        var f = d.getElementsByTagName("script")[0];
+        f && f.parentNode ? f.parentNode.insertBefore(s, f) : (d.head||d.documentElement).appendChild(s);
+    })(window, document);
+  </script>
+
   <title>Launchly — Build Better, Faster</title>
 
   <style>
