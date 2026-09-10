@@ -1,5 +1,8 @@
 name: landing-optimizer-snippet
 
+# Standard built bundles: docker compose up --build
+# Live SDK/demo changes: docker compose -f docker-compose.yml -f docker-compose.watch.yml up --build --watch
+
 services:
   sdk:
     build:

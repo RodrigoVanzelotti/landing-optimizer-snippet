@@ -20,10 +20,12 @@ export type EventName =
   | 'form_start'
   | 'form_submit'
   | 'section_view'
+  | 'hover'
   | 'dwell'
   | 'dropoff'
   | 'exposure'
   | 'conversion'
+  | 'company_context'
   | 'page_map';
 
 /** A single event as sent on the wire (compact keys, see EVENT_SCHEMA §2). */
@@ -122,6 +124,35 @@ export interface SiteConfig {
   sig: string;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Snapshot capture types (operator-triggered, never runs for real visitors).  */
+/* -------------------------------------------------------------------------- */
+
+/** Document-space bounding box `[x, y, width, height]` in CSS pixels. */
+export type NodeRect = [number, number, number, number];
+
+/** A mapped node enriched with its on-screen geometry at capture time. */
+export interface SnapshotNode {
+  selector: string;
+  role: string;
+  rect: NodeRect;
+}
+
+/** Wire payload for `POST /v1/snapshots` (see docs/EVENT_SCHEMA §8). */
+export interface SnapshotEnvelope {
+  v: 1;
+  siteId: string;
+  ik: string;
+  path: string;
+  /** rasterized image width / full document height in CSS pixels. */
+  width: number;
+  height: number;
+  contentType: 'image/webp' | 'image/png' | 'image/jpeg';
+  /** base64 image data, no `data:` prefix. */
+  image: string;
+  nodes: SnapshotNode[];
+}
+
 /** Public window API surface. */
 export interface LandingOptimizerApi {
   q?: unknown[][];
@@ -135,5 +166,7 @@ export interface LandingOptimizerApi {
 declare global {
   interface Window {
     LandingOptimizer?: LandingOptimizerApi;
+    /** installed by the lazily loaded lo-capture.js bundle (operator-only). */
+    __loCapture?: (config: SdkConfig) => void;
   }
 }

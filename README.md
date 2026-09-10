@@ -45,6 +45,18 @@ npm test           # vitest (jsdom)
 npm run typecheck
 ```
 
+### Docker watch mode
+Requires Docker Compose 2.23 or newer:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.watch.yml up --build --watch
+```
+
+`src/` edits rebuild `dist/lo.js` and `dist/loader.js` through `tsup --watch`;
+the SDK remains available at http://localhost:4000. Demo-page edits synchronize
+to http://localhost:3005 (refresh the page to reload the latest SDK). Changes to
+package manifests or Dockerfiles rebuild the development image.
+
 ## Architecture
 | Module | Responsibility |
 | --- | --- |
@@ -55,6 +67,8 @@ npm run typecheck
 | `transport.ts` | Batching + `sendBeacon`/`fetch` flush. |
 | `pagemap.ts` | Sanitized structural page map. |
 | `tracker.ts` | Behavioral listeners + public `track`/`conversion`. |
+| `hover.ts` | Element-anchored hover attention (1 Hz sampling, aggregated `hover` events; coordinates never leave the browser). |
 | `experiments.ts` | Signed config fetch/verify + variant allocation + DOM apply. |
-| `index.ts` | Bootstrap + queue drain. |
+| `capture.ts` | Operator-only page snapshot (`lo-capture.js`, separate bundle) — lazy-loaded via `?lo_capture=1`, never for real visitors. |
+| `index.ts` | Bootstrap + queue drain + capture trigger. |
 | `loader.ts` | Tiny async loader source. |

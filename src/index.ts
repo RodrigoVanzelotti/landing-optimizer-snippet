@@ -1,4 +1,4 @@
-import { readConfig } from './config';
+import { CAPTURE_PARAM, readConfig, sdkScriptSrc } from './config';
 import {
   currentPath,
   detectBrowser,
@@ -12,7 +12,7 @@ import { getSessionId } from './session';
 import { Tracker } from './tracker';
 import { Transport } from './transport';
 import { sanitizeProps } from './sanitize';
-import type { LandingOptimizerApi, WireContext } from './types';
+import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
 
 /**
  * SDK entry point. Everything is wrapped so that a failure here can never break
@@ -22,6 +22,9 @@ import type { LandingOptimizerApi, WireContext } from './types';
   try {
     const config = readConfig();
     if (!config) return; // missing/invalid install — do nothing, silently.
+
+    // Must be resolved synchronously while document.currentScript is valid.
+    const scriptSrc = sdkScriptSrc();
 
     if (Math.random() > config.sampling) {
       // Not sampled: still expose a no-op API so customer calls don't error.
@@ -72,6 +75,11 @@ import type { LandingOptimizerApi, WireContext } from './types';
         tracker.exposure(exp, variant),
       );
       void engine.run();
+
+      // Operator-only snapshot capture: lazy-load the separate capture bundle
+      // when the page is opened with ?lo_capture=1. Real visitors never hit
+      // this path, so the core bundle stays small.
+      maybeLoadCapture(config, scriptSrc);
     });
   } catch {
     /* absolute last-resort guard: never throw into the host page */
@@ -104,6 +112,32 @@ function drainQueue(
     } catch {
       /* skip malformed queued call */
     }
+  }
+}
+
+/**
+ * Load `lo-capture.js` (published next to `lo.js` on the CDN) and hand it the
+ * runtime config. Guarded so a failure can never affect the host page.
+ */
+function maybeLoadCapture(config: SdkConfig, scriptSrc: string | null): void {
+  try {
+    if (new URLSearchParams(location.search).get(CAPTURE_PARAM) !== '1') return;
+    if (!scriptSrc) return;
+    const src = scriptSrc.replace(/lo(\.min)?\.js([?#].*)?$/, 'lo-capture.js');
+    if (src === scriptSrc) return;
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = src;
+    s.onload = () => {
+      try {
+        window.__loCapture?.(config);
+      } catch {
+        /* capture is best-effort */
+      }
+    };
+    (document.head ?? document.documentElement).appendChild(s);
+  } catch {
+    /* never break the host page */
   }
 }
 

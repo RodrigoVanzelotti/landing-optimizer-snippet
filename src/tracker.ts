@@ -1,5 +1,7 @@
 import { LIMITS } from './config';
+import { HoverTracker } from './hover';
 import { detectCtas, buildPageMap, stableSelector } from './pagemap';
+import type { PageMap } from './pagemap';
 import { sanitizeProps } from './sanitize';
 import type { Transport } from './transport';
 import type { EventName, WireEvent } from './types';
@@ -19,12 +21,16 @@ export class Tracker {
 
   init(): void {
     this.emit('page_view');
+    // Build the structural page map once and share it: section visibility,
+    // hover attention, and the page_map event all read the same snapshot.
+    const map = safeBuildPageMap();
     this.trackScrollDepth();
     this.trackClicks();
     this.trackForms();
-    this.trackSectionVisibility();
+    this.trackSectionVisibility(map);
+    this.trackHover(map);
     this.trackDwell();
-    this.sendPageMap();
+    this.sendPageMap(map);
   }
 
   /* ----------------------------- public API ----------------------------- */
@@ -131,9 +137,8 @@ export class Tracker {
     );
   }
 
-  private trackSectionVisibility(): void {
+  private trackSectionVisibility(map: PageMap): void {
     if (typeof IntersectionObserver === 'undefined') return;
-    const map = buildPageMap();
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -166,9 +171,20 @@ export class Tracker {
     });
   }
 
-  private sendPageMap(): void {
+  private trackHover(map: PageMap): void {
     try {
-      const map = buildPageMap();
+      const hover = new HoverTracker((entry) =>
+        this.emit('hover', { sel: entry.sel, dw: entry.dw }),
+      );
+      hover.init(map.nodes);
+    } catch {
+      /* attention tracking is best-effort */
+    }
+  }
+
+  private sendPageMap(map: PageMap): void {
+    try {
+      if (map.nodes.length === 0) return;
       this.emit('page_map', {
         p: { path: map.path, counts: map.counts, nodes: map.nodes.slice(0, 60) },
       });
@@ -182,6 +198,14 @@ export class Tracker {
     const input = el.closest('input');
     if (input && input.getAttribute('type') === 'password') return true;
     return false;
+  }
+}
+
+function safeBuildPageMap(): PageMap {
+  try {
+    return buildPageMap();
+  } catch {
+    return { path: location.pathname || '/', nodes: [], counts: {} };
   }
 }
 

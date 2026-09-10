@@ -40,6 +40,15 @@ export function readConfig(): SdkConfig | null {
   }
 }
 
+/** Resolve the src of the running SDK bundle (used to locate lo-capture.js). */
+export function sdkScriptSrc(): string | null {
+  try {
+    return currentScript()?.src ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function currentScript(): HTMLScriptElement | null {
   const cs = document.currentScript;
   if (cs instanceof HTMLScriptElement) return cs;
@@ -70,4 +79,12 @@ export const LIMITS = {
   sessionTtlMs: 30 * 60 * 1000, // 30 minutes, short-lived
   configTimeoutMs: 2500,
   antiFlickerMaxMs: 2000,
+  // Hover attention sampling (element-anchored, aggregated before send).
+  hoverSampleMs: 1000,
+  hoverFlushMs: 15000,
+  hoverMaxSelectors: 20,
+  hoverMinMs: 2000,
 } as const;
+
+/** Query parameter that triggers the operator-only snapshot capture module. */
+export const CAPTURE_PARAM = 'lo_capture';

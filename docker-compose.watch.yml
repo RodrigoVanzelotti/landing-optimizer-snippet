@@ -1,0 +1,38 @@
+# Development override for SDK compilation and demo-page live updates.
+# Run: docker compose -f docker-compose.yml -f docker-compose.watch.yml up --build --watch
+services:
+  sdk:
+    build:
+      target: development
+    command: ['sh', '-c', 'npm run dev & exec serve dist -l 4000']
+    restart: 'no'
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: sync+restart
+          path: ./tsup.config.ts
+          target: /app/tsup.config.ts
+        - action: sync+restart
+          path: ./tsconfig.json
+          target: /app/tsconfig.json
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./package-lock.json
+        - action: rebuild
+          path: ./Dockerfile
+
+  demo:
+    build:
+      target: development
+    command: ['serve', 'sites/generic_landing_page', '-l', '3005']
+    restart: 'no'
+    develop:
+      watch:
+        - action: sync
+          path: ./sites/generic_landing_page
+          target: /app/sites/generic_landing_page
+        - action: rebuild
+          path: ./Dockerfile
