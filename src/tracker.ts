@@ -56,7 +56,11 @@ export class Tracker {
   /* --------------------------- internal helpers -------------------------- */
 
   private emit(n: EventName, extra: Partial<WireEvent> = {}): void {
-    const event: WireEvent = { n, t: Date.now() - this.navStart, ...extra };
+    // Clamp to the wire schema's 24h ceiling: a tab left open longer would
+    // otherwise send out-of-range values and get EVERY batch rejected (400),
+    // silently ending recording for that page view.
+    const event: WireEvent = { n, t: clampDay(Date.now() - this.navStart), ...extra };
+    if (typeof event.dw === 'number') event.dw = clampDay(event.dw);
     this.transport.enqueue(event);
   }
 
@@ -199,6 +203,12 @@ export class Tracker {
     if (input && input.getAttribute('type') === 'password') return true;
     return false;
   }
+}
+
+const DAY_MS = 24 * 3600 * 1000;
+
+function clampDay(ms: number): number {
+  return Math.max(0, Math.min(ms, DAY_MS));
 }
 
 function safeBuildPageMap(): PageMap {
