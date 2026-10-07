@@ -22,6 +22,7 @@ export default defineConfig([
     clean: true,
     treeshake: true,
     outExtension: () => ({ js: '.js' }),
+    publicDir: 'public'
   },
   {
     entry: { 'loader': 'src/loader.ts' },
