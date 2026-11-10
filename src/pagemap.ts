@@ -1,4 +1,4 @@
-import { truncate } from './sanitize';
+import { looksLikePii, truncate } from './sanitize';
 
 /**
  * Builds a lightweight, sanitized structural map of the page. We record roles,
@@ -34,15 +34,40 @@ export interface PageMap {
 
 const MAX_NODES = 120;
 const MAX_TEXT = 80;
+const ROLES: SectionRole[] = [
+  'hero', 'pricing', 'testimonials', 'faq', 'navigation', 'footer',
+  'form', 'cta', 'heading', 'section',
+];
+
+export function hasManualMapping(): boolean {
+  return document.querySelector('[data-lo-role]') !== null;
+}
+
+function manualElements(): Element[] {
+  return Array.from(document.querySelectorAll('[data-lo-role]')).filter((el) =>
+    ROLES.includes(el.getAttribute('data-lo-role') as SectionRole) &&
+    manualSelector(el) !== null && !el.closest('[data-lo-ignore], input[type="password"]') &&
+    (el.getAttribute('data-lo-role') !== 'form' || el.tagName === 'FORM'),
+  );
+}
+
+function manualSelector(el: Element): string | null {
+  const id = el.getAttribute('data-lo-id');
+  if (!id || id !== id.trim() || !/^[a-z][a-z0-9-]{0,63}$/.test(id) || looksLikePii(id)) return null;
+  const selector = `[data-lo-id="${id}"]`;
+  return document.querySelectorAll(selector).length === 1 ? selector : null;
+}
 
 export function buildPageMap(): PageMap {
   const nodes: MappedNode[] = [];
   const seen = new Set<Element>();
 
   const push = (el: Element | null, role: SectionRole): void => {
-    if (!el || seen.has(el) || nodes.length >= MAX_NODES) return;
+    if (!el || seen.has(el) || nodes.length >= MAX_NODES ||
+      el.closest('[data-lo-ignore], input[type="password"]')) return;
     seen.add(el);
-    const text = shortText(el);
+    const fullText = mappedText(el);
+    const text = shortText(fullText);
     const node: MappedNode = {
       role,
       selector: stableSelector(el),
@@ -50,29 +75,33 @@ export function buildPageMap(): PageMap {
     };
     if (text) {
       node.text = text;
-      node.textHash = hash32(el.textContent ?? '');
+      node.textHash = hash32(fullText);
     }
     nodes.push(node);
   };
 
-  // Landmarks
-  push(document.querySelector('nav, [role="navigation"], header nav'), 'navigation');
-  push(document.querySelector('footer, [role="contentinfo"]'), 'footer');
-  push(detectHero(), 'hero');
+  if (hasManualMapping()) {
+    manualElements().forEach((el) => push(el, el.getAttribute('data-lo-role') as SectionRole));
+  } else {
+    // Landmarks
+    push(document.querySelector('nav, [role="navigation"], header nav'), 'navigation');
+    push(document.querySelector('footer, [role="contentinfo"]'), 'footer');
+    push(detectHero(), 'hero');
 
-  // Headings
-  document.querySelectorAll('h1, h2, h3').forEach((h) => push(h, 'heading'));
+    // Headings
+    document.querySelectorAll('h1, h2, h3').forEach((h) => push(h, 'heading'));
 
-  // CTAs
-  detectCtas().forEach((c) => push(c, 'cta'));
+    // CTAs
+    detectCtas().forEach((c) => push(c, 'cta'));
 
-  // Forms
-  document.querySelectorAll('form').forEach((f) => push(f, 'form'));
+    // Forms
+    document.querySelectorAll('form').forEach((f) => push(f, 'form'));
 
-  // Semantic sections by keyword
-  push(sectionByKeyword(['pricing', 'plans', 'price']), 'pricing');
-  push(sectionByKeyword(['testimonial', 'review', 'customers', 'trusted']), 'testimonials');
-  push(sectionByKeyword(['faq', 'questions', 'frequently']), 'faq');
+    // Semantic sections by keyword
+    push(sectionByKeyword(['pricing', 'plans', 'price']), 'pricing');
+    push(sectionByKeyword(['testimonial', 'review', 'customers', 'trusted']), 'testimonials');
+    push(sectionByKeyword(['faq', 'questions', 'frequently']), 'faq');
+  }
 
   const counts: Record<string, number> = {};
   for (const n of nodes) counts[n.role] = (counts[n.role] ?? 0) + 1;
@@ -88,6 +117,9 @@ function detectHero(): Element | null {
 }
 
 export function detectCtas(): Element[] {
+  if (hasManualMapping()) {
+    return manualElements().filter((el) => el.getAttribute('data-lo-role') === 'cta');
+  }
   const selectors = [
     'a[class*="btn" i]',
     'button',
@@ -129,18 +161,25 @@ function sectionByKeyword(keywords: string[]): Element | null {
   return null;
 }
 
-function shortText(el: Element): string | undefined {
-  const t = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+function mappedText(el: Element): string {
+  if (!el.querySelector('[data-lo-ignore], input[type="password"]')) return el.textContent ?? '';
+  const clone = el.cloneNode(true) as Element;
+  clone.querySelectorAll('[data-lo-ignore], input[type="password"]').forEach((child) => child.remove());
+  return clone.textContent ?? '';
+}
+
+function shortText(text: string): string | undefined {
+  const t = text.replace(/\s+/g, ' ').trim();
   if (!t) return undefined;
   return truncate(t, MAX_TEXT);
 }
 
 /**
- * Produce a reasonably stable, safe selector for an element. Prefers id, then
- * a single stable class, then nth-of-type path. Never emits attribute-value
- * selectors.
+ * Prefer a unique, validated manual ID, then the legacy ID/class/path selector.
  */
 export function stableSelector(el: Element): string {
+  const manual = manualSelector(el);
+  if (manual) return manual;
   if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) return `#${el.id}`;
   const parts: string[] = [];
   let node: Element | null = el;

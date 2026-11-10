@@ -9,6 +9,13 @@ async bundle. **No PII is ever collected.** See
 Paste the generated snippet (see [install/snippet.template.html](install/snippet.template.html))
 just before `</head>`. It loads asynchronously and fails silently.
 
+### Label client pages
+
+Use `data-lo-role` and a unique `data-lo-id` on each element to map and track.
+Any role attribute enables manual mapping for that page; unlabeled pages keep
+automatic discovery. See the complete [client labeling guide](docs/CLIENT_LABELING.md)
+for all ten roles, examples, tracking behavior and API-first rollout requirements.
+
 ### Public API
 ```js
 window.LandingOptimizer.track("cta_click", { section: "hero" });        // custom event

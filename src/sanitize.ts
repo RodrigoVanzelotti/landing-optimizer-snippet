@@ -71,7 +71,7 @@ export function truncate(s: string, max: number): string {
 
 /**
  * Allow a conservative subset of CSS selectors for variant targeting. We block
- * attribute-value selectors (which could exfiltrate values) and anything that
+ * general attribute-value selectors (which could exfiltrate values) and anything that
  * is not a plain id/class/tag chain with descendant/child/sibling combinators.
  * Supports compound selectors such as `.cta.primary` and `main > section h2`.
  */
@@ -81,11 +81,14 @@ const NAME = '[a-zA-Z][\\w-]*';
 const COMPOUND = `(?:(?:${NAME}|\\*)(?:[.#]${NAME})*|(?:[.#]${NAME})+)`;
 const COMBINATOR = '(?:\\s*[>+~]\\s*|\\s+)';
 const SAFE_SELECTOR = new RegExp(`^${COMPOUND}(?:${COMBINATOR}${COMPOUND})*$`);
+// Only our static instrumentation ID is allowed; never arbitrary attribute values.
+const MANUAL_SELECTOR = /^\[data-lo-id="[a-z][a-z0-9-]{0,63}"\]$/;
 
 export function isSafeSelector(selector: string): boolean {
   if (typeof selector !== 'string' || selector.length === 0 || selector.length > 256) {
     return false;
   }
+  if (MANUAL_SELECTOR.test(selector.trim())) return !looksLikePii(selector);
   // No attribute selectors, pseudo-classes, grouping, or JS-ish characters.
   // `>` `+` `~` are permitted as combinators; `<` stays blocked.
   if (/[[\](){}<'"`;:,]/.test(selector)) return false;

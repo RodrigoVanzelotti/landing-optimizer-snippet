@@ -1,6 +1,6 @@
 import { LIMITS } from './config';
 import { HoverTracker } from './hover';
-import { detectCtas, buildPageMap, stableSelector } from './pagemap';
+import { detectCtas, buildPageMap, hasManualMapping, stableSelector } from './pagemap';
 import type { PageMap } from './pagemap';
 import { sanitizeProps } from './sanitize';
 import type { Transport } from './transport';
@@ -26,7 +26,7 @@ export class Tracker {
     const map = safeBuildPageMap();
     this.trackScrollDepth();
     this.trackClicks();
-    this.trackForms();
+    this.trackForms(map);
     this.trackSectionVisibility(map);
     this.trackHover(map);
     this.trackDwell();
@@ -78,12 +78,13 @@ export class Tracker {
 
   private trackClicks(): void {
     const ctaSet = new Set(detectCtas());
+    const manual = hasManualMapping();
     document.addEventListener(
       'click',
       (e) => {
         const target = e.target as Element | null;
         if (!target || this.isIgnored(target)) return;
-        const el = target.closest('a,button,[role="button"],input');
+        const el = target.closest('a,button,[role="button"],input,[data-lo-role="cta"]');
         const now = Date.now();
 
         // Rage-click detection (rapid repeated clicks).
@@ -103,7 +104,7 @@ export class Tracker {
           return;
         }
 
-        if (ctaSet.has(el) || el.tagName === 'BUTTON') {
+        if (ctaSet.has(el) || (!manual && el.tagName === 'BUTTON')) {
           this.emit('cta_click', { sel: stableSelector(el) });
         }
       },
@@ -111,7 +112,10 @@ export class Tracker {
     );
   }
 
-  private trackForms(): void {
+  private trackForms(map: PageMap): void {
+    const forms = hasManualMapping()
+      ? new Set(map.nodes.filter((n) => n.role === 'form').map((n) => safeQuery(n.selector)))
+      : null;
     // Never capture values — only lifecycle signals.
     document.addEventListener(
       'focusin',
@@ -119,7 +123,7 @@ export class Tracker {
         const el = e.target as Element | null;
         if (!el || this.isIgnored(el)) return;
         const form = el.closest('form');
-        if (form && !form.hasAttribute('data-lo-started')) {
+        if (form && (!forms || forms.has(form)) && !form.hasAttribute('data-lo-started')) {
           form.setAttribute('data-lo-started', '1');
           this.emit('form_start', { sel: stableSelector(form) });
         }
@@ -130,7 +134,7 @@ export class Tracker {
       'submit',
       (e) => {
         const form = e.target as Element | null;
-        if (!form || this.isIgnored(form)) return;
+        if (!form || this.isIgnored(form) || (forms && !forms.has(form))) return;
         this.emit('form_submit', { sel: stableSelector(form) });
       },
       { capture: true },
@@ -147,7 +151,9 @@ export class Tracker {
             const node = map.nodes.find(
               (n) => safeMatch(entry.target, n.selector),
             );
-            this.emit('section_view', { sec: node?.role ?? 'section' });
+            this.emit('section_view', {
+              sec: node?.role ?? 'section', sel: node?.selector ?? stableSelector(entry.target),
+            });
           }
         }
       },
