@@ -16,6 +16,10 @@ Any role attribute enables manual mapping for that page; unlabeled pages keep
 automatic discovery. See the complete [client labeling guide](docs/CLIENT_LABELING.md)
 for all ten roles, examples, tracking behavior and API-first rollout requirements.
 
+For coding agents, use the portable [label-landing-page skill](.agents/skills/label-landing-page/SKILL.md).
+Copy its complete folder into another site's `.agents/skills/` directory to reuse
+the labeling workflow, bundled contract and read-only browser validator.
+
 ### Public API
 ```js
 window.LandingOptimizer.track("cta_click", { section: "hero" });        // custom event
