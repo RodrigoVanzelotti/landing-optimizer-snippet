@@ -13,6 +13,38 @@ Read [the labeling contract](references/labeling-contract.md) before editing. It
 contains the ten accepted roles, examples, selector rules and SDK lifecycle limits.
 It is bundled so this skill can be copied to another website repository.
 
+## Default to low-friction CMS installation
+
+Assume the customer may only have access to a CMS/editor and a head-code or GTM
+slot, with no repository, backend access or ability to add customer-specific JS.
+Prefer the generated installation snippet plus static `data-lo-role`/`data-lo-id`
+attributes exposed by the editor. Do not require a new locally hosted loader,
+theme edits, custom success callbacks or a platform plugin as the default setup.
+The SDK also reads configuration directly from its script tag; verify whether
+the installation UI exposes that format rather than assuming it generates it.
+
+Check what the published site actually permits: executing the SDK on the main
+document, saving custom attributes, native form submissions, success redirects,
+late-rendered elements and navigation without a full reload. An HTML embed in an
+isolated iframe is not equivalent to a script installed in the parent page.
+CMS names alone do not establish compatibility; test the customer's actual editor,
+permissions, published DOM and workflow. Do not invent access or a platform adapter.
+
+For conversions without custom code, prefer an existing success-page URL when it
+signals the intended outcome; otherwise offer native form submissions explicitly
+as attempts. A confirmed-success event callback is an optional advanced integration,
+appropriate when the site exposes one and the user authorizes it. If neither a
+success URL nor a supported success signal exists, report that confirmed business
+success cannot yet be measured; never relabel a click/attempt as confirmed success.
+For a site we own, a custom callback can demonstrate that advanced path, but it
+must not become a requirement for installing the product on customer sites.
+
+Where the editor cannot save labels, the SDK's existing heuristic discovery is
+available only on pages without any role attributes. Remote selector-to-role/ID
+mapping, configurable success-element detection, CMS-specific success adapters and
+SPA remapping are not supplied by this labeling skill. Check current SDK support
+and report any missing capability instead of injecting per-customer JS to hide it.
+
 ## Inspect and map the page
 
 Find the real rendered routes, shared components, responsive duplicates and SDK
@@ -84,6 +116,48 @@ publication within the user's authorized scope. Reuse the site's own generated
 installation snippet; never copy another tenant's configuration.
 
 ## Hand off
+
+After changing a page, explicitly return a **Conversion goals to add in the
+dashboard** list, even if no new goals are needed. Labels map elements and track
+interactions; they do not define business success or create dashboard goals.
+
+- Identify the page's intended business outcome and recommend it as the primary
+  goal. List intermediate actions only as optional diagnostics, not equivalent
+  conversions. Do not turn every labeled CTA, navigation link or demo control
+  into a goal; CTA clicks are already interaction events.
+- For each recommendation, give the exact dashboard `Name`, `Kind`, matcher
+  fields (selector or URL operator/path when applicable), trigger, and readiness:
+  already instrumented, integration required, or runtime support unverified.
+  Distinguish goals to add from existing goals to keep/update; do not suggest
+  duplicate goals for unchanged identities.
+- Inspect the current dashboard/API contract when available. The current kinds
+  are `event`, `url` and `form_submit`; `cta` is a mapping role, not a goal kind.
+  Verify runtime evaluation as well as accepted configuration. A goal being
+  saved successfully does not prove its matcher generates conversions.
+- An `event` goal's name must exactly match
+  `LandingOptimizer.conversion("name")`. Prefer a stable ASCII name of at most
+  64 characters, the SDK limit. Confirm the call exists after business success;
+  otherwise explicitly state the missing integration and where it belongs.
+  Do not add that integration unless requested, and do not require it for the
+  default CMS setup; recommend a supported no-code signal when one exists.
+- For `form_submit`, use the actual mapped form's exact standalone selector,
+  e.g. `[data-lo-id="lead-form"]`. Native submission is an attempt, not proof
+  of successful persistence/payment. For `url`, use an actual success pathname
+  and the supported matcher; an anchor such as `#contact` is not a success page.
+- With the updated API, matching `page_view` and `form_submit` events generate
+  conversions at ingestion for their configured goals. Keep business success
+  separate from submission attempts. These rules apply to incoming events after
+  configuration; creating a goal does not backfill past visits/submissions.
+- State which goal to select as the experiment's primary goal before review.
+  The dashboard's experiment detail page supports this on drafts/AI suggestions.
+  Results count one converted session per variant after exposure, filtered by
+  that goal; without a primary goal they include all conversion goals. Session
+  attribution uses the SDK session identity with the API's daily privacy salt.
+  Optional diagnostic goals can increase the site's aggregate conversion count;
+  do not recommend adding one unless that additional metric is useful.
+- Check old selectors and SDK/API compatibility. If runtime support cannot be
+  verified, keep the recommendation conditional and state the check remaining.
+  Do not create goals in a connected account without user authorization.
 
 Report the changed routes/components, role/ID inventory, validation performed and
 any SDK, dynamic-content, privacy or rollout gaps. Flag existing goals/experiments
