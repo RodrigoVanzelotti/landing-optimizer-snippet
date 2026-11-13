@@ -13,7 +13,7 @@ import type { NodeRect, SdkConfig, SnapshotEnvelope, SnapshotNode } from './type
  * its layers on, so heat zones stay aligned with the image forever.
  *
  * Privacy: form values are cleared, password inputs and `[data-lo-ignore]`
- * elements are removed from the clone before rasterization, and cross-origin
+ * elements become empty layout placeholders, and cross-origin
  * images that cannot be read are replaced with neutral placeholders.
  */
 
@@ -65,7 +65,7 @@ export function collectNodeRects(
 }
 
 async function capture(config: SdkConfig): Promise<void> {
-  const badge = showBadge('Landing Optimizer: capturing page…');
+  const badge = showBadge('Landing Optimizer: preparando captura…');
   try {
     await settle();
 
@@ -78,7 +78,7 @@ async function capture(config: SdkConfig): Promise<void> {
 
     const image = await rasterize(width, height);
     if (!image) {
-      badge.textContent = 'Landing Optimizer: capture failed (render)';
+      badge.textContent = 'Landing Optimizer: não foi possível gerar a imagem. Recarregue para tentar novamente.';
       return;
     }
 
@@ -94,6 +94,7 @@ async function capture(config: SdkConfig): Promise<void> {
       nodes,
     };
 
+    badge.textContent = 'Landing Optimizer: enviando captura…';
     const res = await fetch(snapshotUrlFrom(config.ingestUrl), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,10 +104,10 @@ async function capture(config: SdkConfig): Promise<void> {
     });
 
     badge.textContent = res.ok
-      ? 'Landing Optimizer: snapshot captured ✓ — check the Heatmap page'
-      : `Landing Optimizer: capture rejected (${res.status})`;
+      ? 'Landing Optimizer: captura salva. Volte à Visão geral → Experiência do usuário e atualize os dados.'
+      : `Landing Optimizer: captura recusada (${res.status}). Confira a instalação e a origem permitida do site.`;
   } catch {
-    badge.textContent = 'Landing Optimizer: capture failed';
+    badge.textContent = 'Landing Optimizer: falha na captura. Confira sua conexão e recarregue para tentar novamente.';
   } finally {
     setTimeout(() => badge.remove(), 8000);
   }
@@ -174,7 +175,7 @@ function buildSvgSnapshot(width: number, height: number): string | null {
     // document order, so both must run before scrubbing mutates the clone.
     inlineStyles(source, clone);
     inlineImages(source, clone);
-    scrubClone(clone);
+    scrubClone(source, clone);
 
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     const html = new XMLSerializer().serializeToString(clone);
@@ -231,16 +232,29 @@ function walk(root: Element): Element[] {
 }
 
 /** Remove active/sensitive content from the clone. Runs after style inlining. */
-function scrubClone(clone: HTMLElement): void {
-  clone
-    .querySelectorAll('script, noscript, iframe, video, audio, canvas, [data-lo-ignore]')
-    .forEach((el) => el.remove());
+function scrubClone(source: HTMLElement, clone: HTMLElement): void {
+  const originals = walk(source);
+  // Keep the original boxes: deleting private/media nodes moves the screenshot away from its rects.
+  walk(clone).forEach((el, index) => {
+    if (!el.matches('iframe, video, audio, canvas, [data-lo-ignore], input[type="password"], input[type="hidden"]')) return;
+    const original = originals[index];
+    if (!original) return;
+    const placeholder = document.createElement(original instanceof HTMLInputElement ? 'input' : 'div');
+    placeholder.setAttribute('style', el.getAttribute('style') ?? '');
+    if (window.getComputedStyle(original).display === 'inline') {
+      const rect = original.getBoundingClientRect();
+      placeholder.style.display = 'inline-block';
+      placeholder.style.boxSizing = 'border-box';
+      placeholder.style.width = `${rect.width}px`;
+      placeholder.style.height = `${rect.height}px`;
+      if (!original.matches('iframe, video, audio, canvas')) placeholder.textContent = '\u00a0';
+    }
+    placeholder.style.setProperty('visibility', 'hidden', 'important');
+    el.replaceWith(placeholder);
+  });
+  clone.querySelectorAll('script, noscript').forEach((el) => el.remove());
   clone.querySelectorAll('input, textarea, select').forEach((el) => {
     if (el instanceof HTMLInputElement) {
-      if (el.type === 'password' || el.type === 'hidden') {
-        el.remove();
-        return;
-      }
       el.removeAttribute('value');
       el.removeAttribute('checked');
     }
@@ -300,17 +314,16 @@ function imageToDataUrl(img: HTMLImageElement): string | null {
 function loadSvgImage(svg: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     try {
-      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
       const img = new Image();
       const done = (result: HTMLImageElement | null): void => {
-        URL.revokeObjectURL(url);
+        clearTimeout(timer);
         resolve(result);
       };
       img.onload = () => done(img);
       img.onerror = () => done(null);
-      img.src = url;
-      setTimeout(() => done(null), 15000);
+      const timer = setTimeout(() => done(null), 15000);
+      // Chromium taints canvases drawn from blob-backed SVG foreignObject images.
+      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     } catch {
       resolve(null);
     }
@@ -331,6 +344,7 @@ function settle(): Promise<void> {
 function showBadge(text: string): HTMLElement {
   const el = document.createElement('div');
   el.setAttribute('data-lo-ignore', '');
+  el.setAttribute('role', 'status');
   el.textContent = text;
   el.setAttribute(
     'style',

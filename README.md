@@ -56,6 +56,22 @@ npm test           # vitest (jsdom)
 npm run typecheck
 ```
 
+### Operator page capture
+
+With the SDK installed, open the tracked page with `?lo_capture=1` (or
+`&lo_capture=1` if it already has query parameters). Wait for **captura salva**;
+preparing or sending messages do not confirm storage. Then open **Visão geral →
+Experiência do usuário** in the dashboard and refresh the data.
+
+Publish `dist/lo-capture.js` alongside `dist/lo.js` when releasing capture fixes.
+Private and unsupported media elements become empty, invisible boxes with their
+layout dimensions preserved, so downstream heatmap coordinates stay aligned.
+The rasterizer loads its SVG from a `data:` URL: a blob-backed SVG with
+`foreignObject` taints Chromium canvases and prevents image export. Sites with a
+Content Security Policy must permit `data:` in `img-src` for this operator flow.
+Form values and ignored elements are scrubbed before rendering; cross-origin
+images without CORS remain placeholders. Ordinary visits do not load capture.
+
 ### Docker watch mode
 Requires Docker Compose 2.23 or newer:
 
