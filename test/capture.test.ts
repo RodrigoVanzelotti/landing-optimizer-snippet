@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { collectNodeRects, snapshotUrlFrom } from '../src/capture';
+import { collectNodeRects } from '../src/capture';
+import { Blob as NodeBlob } from 'node:buffer';
 import type { SdkConfig } from '../src/types';
 
-describe('capture upload', () => {
+describe('capture download', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -11,7 +12,7 @@ describe('capture upload', () => {
     document.body.innerHTML = '';
   });
 
-  it('uses an origin-clean SVG source, strips private content and uploads the image', async () => {
+  it('uses an origin-clean SVG source, strips private content and downloads a file without credentials', async () => {
     vi.useFakeTimers();
     vi.spyOn(document, 'readyState', 'get').mockReturnValue('complete');
     document.body.innerHTML = '<h1>Public heading</h1><input value="PRIVATE_INPUT"><textarea>PRIVATE_TEXT</textarea><input type="password" value="PRIVATE_PASSWORD"><div data-lo-ignore style="height:200px">PRIVATE_IGNORED</div><span data-lo-ignore style="display:inline">PRIVATE_INLINE</span><iframe src="https://private.example.com" style="height:150px"></iframe><button id="cta">Send</button>';
@@ -26,6 +27,10 @@ describe('capture upload', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(`data:image/webp;base64,${'A'.repeat(64)}`);
     const upload = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', upload);
+    let downloaded!: NodeBlob;
+    vi.stubGlobal('Blob', NodeBlob);
+    vi.stubGlobal('URL', { createObjectURL: (blob: NodeBlob) => { downloaded = blob; return 'blob:capture'; }, revokeObjectURL: vi.fn() });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     window.__loCapture!({ siteId: 'test-site', ingestKey: 'test-key', ingestUrl: 'https://ingest.example.com/v1/events' } as SdkConfig);
     await vi.advanceTimersByTimeAsync(400);
@@ -46,33 +51,13 @@ describe('capture upload', () => {
     expect(maskedPassword).toBeDefined();
     expect(maskedPassword!.type).toBe('text');
     expect(maskedPassword!.hasAttribute('value')).toBe(false);
-    expect(upload).toHaveBeenCalledOnce();
-    const [url, request] = upload.mock.calls[0]!;
-    expect(url).toBe('https://ingest.example.com/v1/snapshots');
-    expect(request.credentials).toBe('omit');
-    expect(JSON.parse(request.body)).toMatchObject({ siteId: 'test-site', contentType: 'image/webp', image: 'A'.repeat(64) });
-    expect(document.querySelector('[role="status"]')?.textContent).toContain('captura salva');
-    expect(vi.getTimerCount()).toBe(1); // Only badge dismissal remains, not the image timeout.
-  });
-});
-
-describe('snapshotUrlFrom', () => {
-  it('rewrites the standard events endpoint', () => {
-    expect(snapshotUrlFrom('https://ingest.example.com/v1/events')).toBe(
-      'https://ingest.example.com/v1/snapshots',
-    );
-  });
-
-  it('handles a trailing slash', () => {
-    expect(snapshotUrlFrom('http://localhost:3001/v1/events/')).toBe(
-      'http://localhost:3001/v1/snapshots',
-    );
-  });
-
-  it('falls back to origin-relative resolution for custom ingest URLs', () => {
-    expect(snapshotUrlFrom('https://ingest.example.com/custom')).toBe(
-      'https://ingest.example.com/v1/snapshots',
-    );
+    expect(upload).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledOnce();
+    const content = JSON.parse(await downloaded.text());
+    expect(content).toMatchObject({ siteId: 'test-site', contentType: 'image/webp', image: 'A'.repeat(64) });
+    expect(content).not.toHaveProperty('ik');
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('arquivo de captura baixado');
+    expect(vi.getTimerCount()).toBe(2); // Badge dismissal and object URL cleanup.
   });
 });
 

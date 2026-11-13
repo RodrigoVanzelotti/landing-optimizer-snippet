@@ -8,7 +8,7 @@ import type { NodeRect, SdkConfig, SnapshotEnvelope, SnapshotNode } from './type
  * page is opened with `?lo_capture=1` — real visitors never download or
  * execute it, so the core bundle stays small. It rasterizes the current page
  * (via SVG foreignObject, no external dependency), records the document-space
- * bounding box of every page-map node, and uploads both to the ingestion API.
+ * bounding box of every page-map node, and downloads a file for dashboard upload.
  * The screenshot + element geometry pair is what the dashboard heatmap draws
  * its layers on, so heat zones stay aligned with the image forever.
  *
@@ -22,18 +22,6 @@ const MAX_DOC_HEIGHT_PX = 15000;
 const MAX_RENDER_WIDTH_PX = 1400;
 const MAX_STYLED_ELEMENTS = 4000;
 const MAX_NODES = 150;
-
-/** Derive the snapshots endpoint from the configured ingest URL. */
-export function snapshotUrlFrom(ingestUrl: string): string {
-  try {
-    if (/\/v1\/events\/?$/.test(ingestUrl)) {
-      return ingestUrl.replace(/\/v1\/events\/?$/, '/v1/snapshots');
-    }
-    return new URL('/v1/snapshots', ingestUrl).toString();
-  } catch {
-    return ingestUrl;
-  }
-}
 
 /** Collect document-space rects for page-map nodes; drops invisible nodes. */
 export function collectNodeRects(
@@ -85,7 +73,6 @@ async function capture(config: SdkConfig): Promise<void> {
     const envelope: SnapshotEnvelope = {
       v: 1,
       siteId: config.siteId,
-      ik: config.ingestKey,
       path: location.pathname || '/',
       width,
       height,
@@ -94,18 +81,15 @@ async function capture(config: SdkConfig): Promise<void> {
       nodes,
     };
 
-    badge.textContent = 'Landing Optimizer: enviando captura…';
-    const res = await fetch(snapshotUrlFrom(config.ingestUrl), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(envelope),
-      credentials: 'omit',
-      mode: 'cors',
-    });
-
-    badge.textContent = res.ok
-      ? 'Landing Optimizer: captura salva. Volte à Visão geral → Experiência do usuário e atualize os dados.'
-      : `Landing Optimizer: captura recusada (${res.status}). Confira a instalação e a origem permitida do site.`;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(envelope)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'landing-optimizer-captura.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    badge.textContent = 'Landing Optimizer: arquivo de captura baixado. Entre no dashboard e envie o arquivo em Experiência do usuário.';
   } catch {
     badge.textContent = 'Landing Optimizer: falha na captura. Confira sua conexão e recarregue para tentar novamente.';
   } finally {

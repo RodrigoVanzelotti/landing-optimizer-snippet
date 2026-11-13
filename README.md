@@ -59,9 +59,10 @@ npm run typecheck
 ### Operator page capture
 
 With the SDK installed, open the tracked page with `?lo_capture=1` (or
-`&lo_capture=1` if it already has query parameters). Wait for **captura salva**;
-preparing or sending messages do not confirm storage. Then open **Visão geral →
-Experiência do usuário** in the dashboard and refresh the data.
+`&lo_capture=1` if it already has query parameters). Wait for the JSON capture
+file to download. Log in as an editor or administrator, open **Visão geral →
+Experiência do usuário**, and upload that file. Only the dashboard upload confirms
+storage; the public snippet key cannot upload snapshots.
 
 Publish `dist/lo-capture.js` alongside `dist/lo.js` when releasing capture fixes.
 Private and unsupported media elements become empty, invisible boxes with their

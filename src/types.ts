@@ -138,11 +138,10 @@ export interface SnapshotNode {
   rect: NodeRect;
 }
 
-/** Wire payload for `POST /v1/snapshots` (see docs/EVENT_SCHEMA §8). */
+/** Downloaded capture file, uploaded by an authenticated dashboard editor. */
 export interface SnapshotEnvelope {
   v: 1;
   siteId: string;
-  ik: string;
   path: string;
   /** rasterized image width / full document height in CSS pixels. */
   width: number;
