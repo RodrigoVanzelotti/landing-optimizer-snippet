@@ -18,7 +18,7 @@ import type { NodeRect, SdkConfig, SnapshotEnvelope, SnapshotNode } from './type
  */
 
 const MAX_IMAGE_BASE64_CHARS = 4_000_000; // ~3 MB decoded
-const MAX_DOC_HEIGHT_PX = 15000;
+const MAX_DOC_HEIGHT_PX = 40000;
 const MAX_RENDER_WIDTH_PX = 1400;
 const MAX_STYLED_ELEMENTS = 4000;
 const MAX_NODES = 150;
@@ -54,15 +54,21 @@ export function collectNodeRects(
 
 async function capture(config: SdkConfig): Promise<void> {
   const badge = showBadge('Landing Optimizer: preparando captura…');
+  const scroll = { x: window.scrollX, y: window.scrollY };
   try {
+    if (scroll.x || scroll.y) window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
     await settle();
 
     const map = buildPageMap();
     const nodes = collectNodeRects(map.nodes);
 
     const doc = document.documentElement;
-    const width = clamp(doc.scrollWidth || window.innerWidth, 320, 2000);
-    const height = clamp(doc.scrollHeight || window.innerHeight, 200, MAX_DOC_HEIGHT_PX);
+    const width = Math.max(doc.scrollWidth, window.innerWidth);
+    const height = Math.max(doc.scrollHeight, window.innerHeight);
+    if (width > 4000 || height > MAX_DOC_HEIGHT_PX || walk(doc).length > MAX_STYLED_ELEMENTS) {
+      badge.textContent = 'Landing Optimizer: página grande demais para uma captura fiel. Capture uma página menor.';
+      return;
+    }
 
     const image = await rasterize(width, height);
     if (!image) {
@@ -93,6 +99,7 @@ async function capture(config: SdkConfig): Promise<void> {
   } catch {
     badge.textContent = 'Landing Optimizer: falha na captura. Confira sua conexão e recarregue para tentar novamente.';
   } finally {
+    if (scroll.x || scroll.y) window.scrollTo({ left: scroll.x, top: scroll.y, behavior: 'instant' });
     setTimeout(() => badge.remove(), 8000);
   }
 }
@@ -103,14 +110,15 @@ interface RasterResult {
 }
 
 async function rasterize(width: number, height: number): Promise<RasterResult | null> {
-  const svg = buildSvgSnapshot(width, height);
+  const svg = await buildSvgSnapshot(width, height);
   if (!svg) return null;
 
   const img = await loadSvgImage(svg);
   if (!img) return null;
 
   // Try progressively smaller scales until the payload fits the cap.
-  for (const scale of [Math.min(1, MAX_RENDER_WIDTH_PX / width), 0.75, 0.5]) {
+  const initialScale = Math.min(1, MAX_RENDER_WIDTH_PX / width, Math.sqrt(24_000_000 / (width * height)));
+  for (const scale of [initialScale, initialScale * 0.75, initialScale * 0.5]) {
     const dataUrl = drawToDataUrl(img, width, height, scale);
     if (!dataUrl) continue;
     const comma = dataUrl.indexOf(',');
@@ -150,16 +158,17 @@ function drawToDataUrl(
   }
 }
 
-function buildSvgSnapshot(width: number, height: number): string | null {
+async function buildSvgSnapshot(width: number, height: number): Promise<string | null> {
   try {
     const source = document.documentElement;
     const clone = source.cloneNode(true) as HTMLElement;
 
-    // Order matters: styles and images are matched to the live tree by
-    // document order, so both must run before scrubbing mutates the clone.
+    // Read styles before sanitizing; fetch resources only after private nodes are gone.
     inlineStyles(source, clone);
-    inlineImages(source, clone);
     scrubClone(source, clone);
+    const resources = new Map<string, Promise<string | null>>();
+    await inlineResources(clone, resources);
+    await inlineFonts(clone, resources);
 
     clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     const html = new XMLSerializer().serializeToString(clone);
@@ -185,6 +194,7 @@ function inlineStyles(source: Element, clone: Element): void {
     const from = src[i];
     const to = dst[i];
     if (!from || !to || !(to instanceof HTMLElement || to instanceof SVGElement)) continue;
+    if (from.parentElement?.closest('[data-lo-ignore], iframe, video, audio, canvas')) continue;
     try {
       const computed = window.getComputedStyle(from);
       let cssText = computed.cssText;
@@ -198,6 +208,25 @@ function inlineStyles(source: Element, clone: Element): void {
         cssText = parts.join('');
       }
       to.setAttribute('style', cssText);
+      if (from.matches('[data-lo-ignore], input[type="password"], input[type="hidden"], iframe, video, audio, canvas')) continue;
+      if (from instanceof HTMLImageElement && to instanceof HTMLImageElement) {
+        to.src = from.currentSrc || from.src;
+        to.removeAttribute('srcset');
+        to.removeAttribute('loading');
+      }
+      to.style.setProperty('animation', 'none', 'important');
+      to.style.setProperty('transition', 'none', 'important');
+      for (const pseudo of ['::before', '::after']) {
+        const computedPseudo = window.getComputedStyle(from, pseudo);
+        if (!computedPseudo.content || ['none', 'normal', '""'].includes(computedPseudo.content)) continue;
+        const className = `lo-capture-${i}-${pseudo.slice(2)}`;
+        to.classList.add(className);
+        const rule = document.createElement('style');
+        rule.setAttribute('data-lo-capture', '');
+        const properties = Array.from(computedPseudo).map(prop => `${prop}:${computedPseudo.getPropertyValue(prop)} !important;`).join('');
+        rule.textContent = `.${className}${pseudo}{${properties}animation:none !important;transition:none !important;}`;
+        clone.appendChild(rule);
+      }
     } catch {
       /* skip element */
     }
@@ -225,6 +254,10 @@ function scrubClone(source: HTMLElement, clone: HTMLElement): void {
     if (!original) return;
     const placeholder = document.createElement(original instanceof HTMLInputElement ? 'input' : 'div');
     placeholder.setAttribute('style', el.getAttribute('style') ?? '');
+    placeholder.setAttribute('data-lo-ignore', '');
+    for (const property of Array.from(placeholder.style)) {
+      if (placeholder.style.getPropertyValue(property).includes('url(')) placeholder.style.removeProperty(property);
+    }
     if (window.getComputedStyle(original).display === 'inline') {
       const rect = original.getBoundingClientRect();
       placeholder.style.display = 'inline-block';
@@ -247,52 +280,98 @@ function scrubClone(source: HTMLElement, clone: HTMLElement): void {
       el.querySelectorAll('option').forEach((o) => o.removeAttribute('selected'));
     }
   });
+  clone.querySelectorAll('*').forEach(el => {
+    for (const attribute of Array.from(el.attributes)) {
+      if (attribute.name.startsWith('on')) el.removeAttribute(attribute.name);
+    }
+  });
 }
 
-/**
- * Replace every `img` src in the clone with an inlined data URL read from the
- * live image. Cross-origin images that taint the canvas become neutral
- * placeholders instead of failing the whole snapshot.
- */
-function inlineImages(source: Element, clone: Element): void {
-  const srcImgs = Array.from(source.querySelectorAll('img'));
-  const dstImgs = Array.from(clone.querySelectorAll('img'));
-  // Runs before scrubbing, so both trees share document order 1:1.
-  const count = Math.min(srcImgs.length, dstImgs.length);
-  for (let i = 0; i < count; i++) {
-    const from = srcImgs[i];
-    const to = dstImgs[i];
-    if (!from || !to) continue;
-    to.removeAttribute('srcset');
-    to.removeAttribute('loading');
-    const inlined = imageToDataUrl(from);
-    if (inlined) {
-      to.setAttribute('src', inlined);
-    } else {
-      to.removeAttribute('src');
-      const w = from.width || 1;
-      const h = from.height || 1;
-      to.setAttribute(
-        'style',
-        `${to.getAttribute('style') ?? ''};background:#e5e7eb;width:${w}px;height:${h}px;`,
-      );
+function inlineResource(url: string, resources: Map<string, Promise<string | null>>): Promise<string | null> {
+  if (url.startsWith('data:')) return Promise.resolve(url);
+  const existing = resources.get(url);
+  if (existing) return existing;
+  const request = (async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(url, { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer', signal: controller.signal });
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      if (blob.size > 3 * 1024 * 1024) return null;
+      return await new Promise<string | null>(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch { return null; }
+    finally { clearTimeout(timer); }
+  })();
+  resources.set(url, request);
+  return request;
+}
+
+async function inlineCssUrls(css: string, base: string, resources: Map<string, Promise<string | null>>): Promise<string> {
+  const matches = Array.from(css.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g));
+  for (const match of matches) {
+    const value = match[2];
+    if (!value || value.startsWith('#')) continue;
+    const data = await inlineResource(new URL(value, base).href, resources);
+    css = css.replace(match[0], data ? `url("${data}")` : 'url("data:,")');
+  }
+  return css;
+}
+
+async function inlineResources(clone: HTMLElement, resources: Map<string, Promise<string | null>>): Promise<void> {
+  clone.querySelectorAll('link[rel="stylesheet"], style:not([data-lo-capture])').forEach(el => el.remove());
+  await Promise.all(walk(clone).map(async el => {
+    if (el instanceof HTMLImageElement && el.getAttribute('src')) {
+      const data = await inlineResource(el.src, resources);
+      if (data) el.src = data;
+      else { el.removeAttribute('src'); el.style.backgroundColor = '#e5e7eb'; }
+    }
+    const style = el.getAttribute('style');
+    if (style?.includes('url(')) el.setAttribute('style', await inlineCssUrls(style, document.baseURI, resources));
+    if (el.matches('style[data-lo-capture]')) el.textContent = await inlineCssUrls(el.textContent ?? '', document.baseURI, resources);
+  }));
+}
+
+async function inlineFonts(clone: HTMLElement, resources: Map<string, Promise<string | null>>): Promise<void> {
+  const families = walk(clone).map(el => el instanceof HTMLElement || el instanceof SVGElement ? el.style.fontFamily.toLowerCase() : '').join(',');
+  const seen = new Set<CSSStyleSheet>();
+  const rules: string[] = [];
+  async function visit(sheet: CSSStyleSheet): Promise<void> {
+    if (seen.has(sheet)) return;
+    seen.add(sheet);
+    const base = sheet.href || document.baseURI;
+    let cssRules: CSSRuleList;
+    try { cssRules = sheet.cssRules; }
+    catch {
+      if (!sheet.href) return;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const response = await fetch(sheet.href, { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer', signal: controller.signal });
+        if (!response.ok) return;
+        const readable = new CSSStyleSheet();
+        readable.replaceSync(await response.text());
+        cssRules = readable.cssRules;
+      } catch { return; }
+      finally { clearTimeout(timer); }
+    }
+    for (const rule of Array.from(cssRules)) {
+      if (rule instanceof CSSImportRule && rule.styleSheet) await visit(rule.styleSheet);
+      if (!(rule instanceof CSSFontFaceRule)) continue;
+      const family = rule.style.getPropertyValue('font-family').replace(/['"]/g, '').toLowerCase();
+      if (family && families.includes(family)) rules.push(await inlineCssUrls(rule.cssText, base, resources));
     }
   }
-}
-
-function imageToDataUrl(img: HTMLImageElement): string | null {
-  try {
-    if (!img.complete || img.naturalWidth === 0) return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
-    return canvas.toDataURL('image/png');
-  } catch {
-    return null; // cross-origin without CORS — caller substitutes placeholder
-  }
+  await Promise.all(Array.from(document.styleSheets).map(visit));
+  const style = document.createElement('style');
+  style.setAttribute('data-lo-capture', '');
+  style.textContent = rules.join('\n');
+  clone.appendChild(style);
 }
 
 function loadSvgImage(svg: string): Promise<HTMLImageElement | null> {
@@ -315,14 +394,27 @@ function loadSvgImage(svg: string): Promise<HTMLImageElement | null> {
 }
 
 /** Wait for full load plus a short settle so late images/layout are included. */
-function settle(): Promise<void> {
-  return new Promise((resolve) => {
+async function settle(): Promise<void> {
+  await new Promise<void>((resolve) => {
     const after = (): void => {
       setTimeout(resolve, 400);
     };
     if (document.readyState === 'complete') after();
     else window.addEventListener('load', after, { once: true });
   });
+  const images = Array.from(document.images).filter(img => !img.closest('[data-lo-ignore]'));
+  const lazy = images.filter(img => img.loading === 'lazy');
+  lazy.forEach(img => { img.loading = 'eager'; });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.allSettled([document.fonts?.ready, ...images.map(img => img.decode?.())]),
+      new Promise<void>(resolve => { timer = setTimeout(resolve, 8000); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    lazy.forEach(img => { img.loading = 'lazy'; });
+  }
 }
 
 function showBadge(text: string): HTMLElement {
@@ -342,10 +434,6 @@ function showBadge(text: string): HTMLElement {
     /* body may not exist yet; badge is cosmetic */
   }
   return el;
-}
-
-function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
 }
 
 // Install the entry point the core SDK calls after lazy-loading this bundle.

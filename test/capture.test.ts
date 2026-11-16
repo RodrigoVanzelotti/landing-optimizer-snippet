@@ -16,6 +16,10 @@ describe('capture download', () => {
     vi.useFakeTimers();
     vi.spyOn(document, 'readyState', 'get').mockReturnValue('complete');
     document.body.innerHTML = '<h1>Public heading</h1><input value="PRIVATE_INPUT"><textarea>PRIVATE_TEXT</textarea><input type="password" value="PRIVATE_PASSWORD"><div data-lo-ignore style="height:200px">PRIVATE_IGNORED</div><span data-lo-ignore style="display:inline">PRIVATE_INLINE</span><iframe src="https://private.example.com" style="height:150px"></iframe><button id="cta">Send</button>';
+    const computedStyle = window.getComputedStyle.bind(window);
+    const noPseudo = document.createElement('div').style;
+    noPseudo.content = 'none';
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => pseudo ? noPseudo : computedStyle(el));
     let imageSource = '';
     vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (this: HTMLImageElement, value: string) {
       imageSource = value;
@@ -58,6 +62,42 @@ describe('capture download', () => {
     expect(content).not.toHaveProperty('ik');
     expect(document.querySelector('[role="status"]')?.textContent).toContain('arquivo de captura baixado');
     expect(vi.getTimerCount()).toBe(2); // Badge dismissal and object URL cleanup.
+  });
+
+  it('embeds background and pseudo-element resources only after removing ignored content', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, 'readyState', 'get').mockReturnValue('complete');
+    document.body.innerHTML = '<h1 style="background-image:url(https://assets.example.com/bg.png)">Public</h1><div data-lo-ignore style="background-image:url(https://assets.example.com/private.png)">PRIVATE</div>';
+    const compute = window.getComputedStyle.bind(window);
+    const noPseudo = document.createElement('div').style;
+    noPseudo.content = 'none';
+    const before = document.createElement('div').style;
+    before.content = '"Badge"'; before.backgroundImage = 'url(https://assets.example.com/bg.png)';
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => pseudo ? el.tagName === 'H1' && pseudo === '::before' ? before : noPseudo : compute(el));
+    const asset = new Blob(['asset'], { type: 'image/png' });
+    const fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => asset });
+    vi.stubGlobal('fetch', fetch);
+    let imageSource = '';
+    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (this: HTMLImageElement, value: string) {
+      imageSource = value;
+      queueMicrotask(() => this.dispatchEvent(new Event('load')));
+    });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ fillRect: vi.fn(), drawImage: vi.fn() } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(`data:image/webp;base64,${'A'.repeat(64)}`);
+    vi.stubGlobal('Blob', NodeBlob);
+    vi.stubGlobal('URL', class extends URL { static override createObjectURL = vi.fn(() => 'blob:capture'); static override revokeObjectURL = vi.fn(); });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    window.__loCapture!({ siteId: 'test-site' } as SdkConfig);
+    await vi.advanceTimersByTimeAsync(450);
+    expect(click).toHaveBeenCalledOnce();
+    const svg = decodeURIComponent(imageSource.slice(imageSource.indexOf(',') + 1));
+    expect(svg).toContain('data:image/png;base64,');
+    expect(svg).toContain('::before');
+    expect(svg).toContain('Badge');
+    expect(svg).not.toContain('PRIVATE');
+    expect(svg).not.toContain('private.png');
+    expect(fetch.mock.calls.map(call => call[0])).toEqual(['https://assets.example.com/bg.png']);
+    expect(fetch).toHaveBeenCalledWith('https://assets.example.com/bg.png', expect.objectContaining({ credentials: 'omit', mode: 'cors' }));
   });
 });
 
