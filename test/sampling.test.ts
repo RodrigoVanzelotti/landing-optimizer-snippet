@@ -6,7 +6,7 @@ import { Transport } from '../src/transport';
 
 const state = vi.hoisted(() => ({ run: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../src/config', () => ({ CAPTURE_PARAM: 'lo_capture', sdkScriptSrc: () => '', readConfig: () => ({ sampling: 0 }) }));
-vi.mock('../src/experiments', () => ({ ExperimentEngine: vi.fn().mockImplementation(function () { return { run: state.run }; }) }));
+vi.mock('../src/experiments', () => ({ ExperimentEngine: vi.fn(function () { return { run: state.run }; }) }));
 vi.mock('../src/session', () => ({ getSessionId: vi.fn() }));
 vi.mock('../src/tracker', () => ({ Tracker: vi.fn() }));
 vi.mock('../src/transport', () => ({ Transport: vi.fn() }));
