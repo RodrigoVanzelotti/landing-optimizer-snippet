@@ -109,6 +109,7 @@ export interface ExperimentTargeting {
 }
 
 export interface ConfigExperiment {
+  permanent?: boolean;
   id: string;
   allocation: number;
   targeting?: ExperimentTargeting;

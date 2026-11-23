@@ -26,7 +26,7 @@ export class ExperimentEngine {
     private readonly onExposure: (experimentId: string, variantId: string) => void,
   ) {}
 
-  async run(): Promise<void> {
+  async run(permanentOnly = false): Promise<void> {
     const site = await this.fetchConfig();
     if (!site) return;
     const ok = await verifySignature(this.config.publicKey, site);
@@ -35,6 +35,7 @@ export class ExperimentEngine {
       return;
     }
     for (const exp of site.experiments) {
+      if (permanentOnly && exp.permanent !== true) continue;
       try {
         this.evaluate(exp);
       } catch {

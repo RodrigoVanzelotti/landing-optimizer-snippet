@@ -26,9 +26,13 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
     // Must be resolved synchronously while document.currentScript is valid.
     const scriptSrc = sdkScriptSrc();
 
-    if (Math.random() > config.sampling) {
+    if (Math.random() >= config.sampling) {
       // Not sampled: still expose a no-op API so customer calls don't error.
       installNoopApi();
+      onReady(() => {
+        const engine = new ExperimentEngine(config, '', detectDevice(), () => undefined);
+        void engine.run(true);
+      });
       return;
     }
 
