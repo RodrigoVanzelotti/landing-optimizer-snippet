@@ -1,70 +1,69 @@
-# Onboarding de clientes do Landing Optimizer
+# Marcação e metas do Landing Optimizer a partir de uma URL
 
-No site do cliente, você só precisa de acesso ao campo de código do `<head>` e aos atributos HTML dos elementos que o editor permite marcar. As metas são configuradas no painel.
+Use este roteiro quando receber a URL de um site de cliente. Entregue o mapa dos elementos reais que devem receber atributos HTML e os valores exatos das metas a registrar no dashboard.
 
-## 1. Identifique o resultado e a confirmação que já existem
+A URL autoriza a inspeção das páginas públicas. Entregue a marcação como instrução para o operador ou para quem edita o CMS. Aplique alterações se o usuário pedir e houver acesso ao código ou ao editor. O onboarding padrão usa a tag externa no `<head>` e atributos nos elementos. Meta, publicação e exclusão de dados em produção são ações separadas e exigem autorização específica.
 
-Percorra o fluxo publicado com dados de teste autorizados. Anote a rota de entrada, a ação e o que aparece depois de um sucesso. Teste também uma falha para distinguir as duas respostas.
+## 1. Inspecione o site publicado
 
-| O fluxo existente mostra | Escolha no painel |
+1. Abra a URL fornecida. Registre o domínio final, a rota, as páginas relevantes ligadas ao fluxo e o resultado de negócio que o site busca, como **receber um pedido**, **concluir um cadastro** ou **confirmar uma compra**.
+2. Examine o DOM renderizado em desktop e mobile. Localize os CTAs, formulários, cópias por breakpoint e elementos que aparecem depois do carregamento. Siga os links públicos do fluxo e identifique se há navegação sem recarga, outra origem, iframe ou etapa que exige login. Use posição, texto público e um seletor verificável para localizar cada alvo.
+3. Descubra qual é o sinal de sucesso. Procure uma rota exclusiva de confirmação, um elemento que só aparece após o sucesso ou uma chamada de conversão já instalada. Use o HTML e o código público quando ajudarem a ligar o sinal ao resultado. Execute envios, cadastros ou jornadas de compra somente em um ambiente ou fluxo de teste autorizado. Se só conseguir observar o botão ou o formulário, registre a confirmação como **não verificada** ou **indisponível**, conforme a evidência.
+4. Verifique a instalação existente e a compatibilidade da versão servida do SDK com o dashboard e a API publicados. Uma mudança no repositório ou a existência de uma opção na UI não comprovam suporte em produção. Se não tiver acesso ao CMS, informe quais atributos o operador precisa conseguir editar. Se não puder consultar as metas atuais, indique que o operador deve verificar se já existe uma meta equivalente.
+
+## 2. Monte o mapa de atributos
+
+| `data-lo-role` | Elemento a marcar |
 | --- | --- |
-| Página exclusiva de sucesso, como `/obrigado` | **Página de confirmação**. Use o caminho exato e instale o script também nessa página. |
-| Um elemento exclusivo de sucesso aparece na mesma rota | **Elemento de confirmação**. Confirme que o editor permite marcar esse elemento. |
-| Apenas clique, tentativa de envio ou confirmação inacessível | Acompanhe o clique ou envio nas métricas de interação. Registre a confirmação como indisponível. |
+| `navigation`, `footer` | Contêineres de navegação e rodapé |
+| `hero`, `section` | Abertura e outras seções relevantes |
+| `heading` | Título ou subtítulo. Prefira o menor elemento que contém o texto, em especial se for alvo de `set_text` |
+| `cta` | Link, botão ou outro controle realmente acionado, em vez do contêiner ou ícone |
+| `form` | O próprio `<form>` nativo |
+| `pricing`, `testimonials`, `faq` | Preços, prova social e perguntas frequentes |
 
-Use uma rota exclusiva de sucesso. Visitar diretamente uma URL configurada também corresponde à meta, então caminhos públicos de uso geral, como `/cadastro`, não servem como confirmação. Um checkout externo ou iframe de terceiros precisa expor um sinal acessível ao documento onde o script roda. Mudanças apenas nos parâmetros ou no fragmento da URL não contam como mudança de rota.
+- Use `data-lo-role` e `data-lo-id` em cada elemento do mapa. O ID deve seguir `^[a-z][a-z0-9-]{0,63}$`. Preserve IDs instalados quando forem válidos. Use IDs diferentes para elementos duplicados no mesmo documento, inclusive versões desktop e mobile ocultas. Para metas ou experimentos que pedem um seletor, use o formato exato `[data-lo-id="id-do-elemento"]`.
+- Qualquer `data-lo-role` ativa o modo manual na página inteira. Cubra todos os CTAs, formulários e áreas que devem entrar no mapa e mantenha até 60 elementos mapeados por página. Páginas sem papéis mantêm a descoberta automática.
+- Um elemento usado só para confirmar sucesso pode receber apenas `data-lo-id`, sem papel. Campos individuais, textos com dados pessoais e subárvores sensíveis ficam fora da marcação. Use `data-lo-ignore` nas áreas sensíveis. O alvo da confirmação precisa estar fora das subárvores ignoradas.
+- Preserve os links, o layout, os estados, a validação e a acessibilidade existentes. Se a marcação atual usa IDs diferentes, sinalize os seletores de metas, experimentos e relatórios que precisariam ser revistos.
 
-## 2. Instale o script do próprio site
+## 3. Escolha as metas a partir da evidência
 
-1. Cadastre o domínio no dashboard e abra **Sites → Instalação do código**. Se o fluxo usa mais de uma origem, verifique quais já estão autorizadas e se o mesmo código pode ser instalado nas páginas relevantes.
-2. Copie a tag `<script>` gerada para esse site. Cole-a uma vez no `<head>` compartilhado, de preferência no campo de código global do CMS.
-3. Publique no CMS. Abra a página publicada e confira no navegador se o script carrega e envia `page_view`. Em sites com CSP, consulte **Orientações de segurança (CSP)** na tela de instalação. Use o campo que insere o script no documento principal.
+Na UI, use **Sites → Instalação do código → Metas de conversão**. Para cada resultado de negócio, escolha o sinal mais confiável disponível na versão publicada.
 
-## 3. Marque os elementos existentes
+| Sinal encontrado no site | Tipo na UI | Valores a entregar |
+| --- | --- | --- |
+| Rota dedicada de sucesso após a ação | **Página de confirmação** (`url`) | Nome da meta, correspondência **Exatamente igual** e o caminho final, como `/obrigado` |
+| Elemento exclusivo de sucesso na mesma rota | **Elemento de confirmação** (`element_visible`) | Nome da meta, caminho onde a ação ocorre, ID da confirmação e, se aplicável, ID do formulário |
+| Chamada de conversão que já existe e só roda após sucesso | **Evento personalizado** (`event`, em **Avançado**) | O nome exato enviado pela chamada existente |
+| Apenas um formulário nativo envia | **Tentativa de envio** (`form_submit`, em **Avançado**) | Só recomende se houver interesse explícito em acompanhar a tentativa como meta intermediária. Dê o nome e o seletor exato do formulário |
+| Apenas clique, ou sucesso sem sinal acessível ao SDK | **Nenhuma meta de sucesso verificável** | Indique a interação que pode ser acompanhada e qual informação falta para medir o resultado |
 
-Aplique `data-lo-role` e `data-lo-id` nos CTAs, formulários e seções importantes que o editor permite alcançar. Mantenha links, estilos e comportamento da página.
+- **Página de confirmação.** Confira se o script também roda na rota final. O matcher usa o caminho, sem parâmetros ou fragmentos, e também conta um acesso direto ao caminho configurado. Use uma rota exclusiva de sucesso. Em SPA, confirme que o SDK publicado emite `page_view` na mudança de caminho sem recarga.
+- **Elemento de confirmação.** Marque o elemento dedicado que já existe. Ele deve estar oculto ou ausente no momento da ação e aparecer na mesma rota em até dois minutos. Escolha um alvo que apareça só no sucesso. Um painel já visível que apenas troca o texto entre erro e sucesso não serve. Com o ID de um formulário nativo, o SDK aguarda um envio desse formulário. Sem esse ID, aguarda um clique em controle interativo ou um envio nessa rota. No dashboard, preencha os IDs sem a sintaxe do seletor. Depois de salvar, reabra a página para carregar a configuração atualizada.
+- **Evento personalizado.** Use apenas quando a chamada já estiver na versão publicada e o nome puder ser verificado. A migração de um evento legado para um sinal por URL ou elemento deve usar a confirmação que a versão publicada realmente oferece. Oriente o operador a evitar duas metas para o mesmo resultado.
+- **Limites do fluxo.** Um CTA mede um clique. Um envio mede uma tentativa. Um checkout externo, iframe ou Shadow DOM só permite medir o sucesso quando há um sinal suportado que o SDK consegue observar no documento em que está instalado. Quando o sinal depender de acesso, publicação ou edição de marcação que ainda não ocorreu, apresente a meta como condicional e diga o que falta confirmar.
+- Indique qual meta de sucesso usar como **meta principal** dos experimentos. O operador pode marcá-la como favorita para a visão geral quando isso refletir o objetivo do site. Verifique as metas existentes antes de sugerir outra. Cadastro de meta não exige zerar o histórico. As metas por condição se aplicam a eventos futuros.
 
-| Papel | Onde aplicar |
-| --- | --- |
-| `navigation`, `footer` | Nos contêineres de navegação e rodapé |
-| `hero`, `section` | No contêiner de abertura e nas demais seções relevantes |
-| `heading` | No título ou subtítulo, de preferência um elemento só de texto |
-| `cta` | No link ou botão que a pessoa aciona |
-| `form` | No elemento `<form>` existente |
-| `pricing`, `testimonials`, `faq` | Nos blocos de preços, prova social e perguntas frequentes |
+## 4. Entregue instruções de instalação e aceite
 
-O ID começa com letra minúscula e tem até 64 caracteres, usando apenas letras minúsculas, números e hífens. Escolha nomes estáveis e únicos no documento publicado. Dê IDs diferentes a cópias mobile e desktop, inclusive quando uma delas está escondida. Tente ficar em até 60 elementos mapeados por página. Ao adicionar qualquer `data-lo-role`, o SDK entra em modo manual na página inteira. Marque os elementos de interesse, especialmente CTAs e formulários, antes de publicar. Uma página sem papéis usa descoberta automática. IDs de elementos de confirmação podem ser adicionados sem configurar um papel.
+- Localize o cadastro do próprio site no dashboard e oriente o operador a copiar a tag gerada para o `<head>` compartilhado. Use a mesma instalação nas rotas relevantes do fluxo, no documento principal e nas origens autorizadas. Se o script estiver bloqueado pela política da página, verifique **Orientações de segurança (CSP)** na tela de instalação.
+- Depois da publicação, confira em desktop e mobile a unicidade dos IDs, a cobertura da marcação e o funcionamento dos controles. Se houver acesso ao DOM, use o [validador de atributos](../.agents/skills/label-landing-page/scripts/validate-labels.js). Ele verifica a marcação. Confira separadamente se `page_view`, `page_map` e a interação esperada chegam à API e aparecem no dashboard.
+- Quando houver teste autorizado, confirme que uma falha gera zero conversões e um sucesso gera uma. Para confirmação na mesma página, teste também a mensagem já visível na abertura e uma renderização repetida. Se houver experimento de homologação, confira a atribuição à variante exposta. Informe na entrega quais verificações foram possíveis.
 
-Mantendo os elementos e estados que o site já possui, a marcação pode ficar assim:
+## Formato da resposta ao receber a URL
 
-```html
-<a href="/cadastro" data-lo-role="cta" data-lo-id="hero-cadastro">Criar conta</a>
-<form data-lo-role="form" data-lo-id="cadastro-form">…</form>
-<p data-lo-id="cadastro-confirmado" hidden>Cadastro concluído.</p>
-```
+1. **Site e fluxo**. URL inspecionada, rotas verificadas, resultado de negócio e o que confirma o sucesso. Cite a página ou a evidência pública e identifique o que ficou sem confirmação.
+2. **Mapa para aplicar**. Use uma linha por elemento real.
 
-O último exemplo representa uma confirmação que o próprio site já torna visível após o sucesso. No CMS, só adicione o atributo ao elemento existente. Se o mesmo elemento exibe erro, carregamento e sucesso, procure um elemento dedicado ou use a rota de sucesso. Mantenha campos e dados pessoais fora das marcações e dos textos mapeados. Use `data-lo-ignore` em áreas sensíveis. Elementos ignorados também ficam de fora da detecção de confirmação.
+   | Rota | Localização no site e seletor atual, se houver | `data-lo-role` | `data-lo-id` | Ação |
+   | --- | --- | --- | --- | --- |
+   | Caminho real | Texto ou referência verificável no DOM | Papel ou campo vazio para confirmação | ID exato | Adicionar, manter ou ajustar |
 
-## 4. Cadastre a meta no dashboard
+3. **Metas a registrar no dashboard**. Escreva **Nenhuma meta de sucesso verificável** quando for o caso. Caso contrário, forneça uma linha para cada meta, com os valores prontos para copiar.
 
-Na tela de instalação, vá até **Metas de conversão** e escolha um nome estável, como `cadastro_concluido`.
+   | Nome exato | Tipo na UI | Campos e valores | Quando conta | Ação e prontidão |
+   | --- | --- | --- | --- | --- |
+   | Nome que será salvo | Rótulo da interface | Somente os campos do tipo escolhido | Sinal observado | Criar, manter ou ajustar. Pronta, depende da marcação ou suporte pendente de verificação |
 
-- Para **Página de confirmação**, selecione **Exatamente igual** e informe o caminho final, por exemplo `/obrigado`.
-- Para **Elemento de confirmação**, informe o caminho em que a ação acontece, por exemplo `/cadastro`, e o ID da confirmação, por exemplo `cadastro-confirmado`. Se existir um formulário nativo dedicado, informe também seu ID, por exemplo `cadastro-form`. Sem o ID de formulário, o SDK passa a observar a confirmação após um clique em um controle interativo ou envio nessa rota. Com o ID, ele observa após o envio daquele formulário. O elemento precisa estar ausente ou oculto no momento da ação e aparecer nessa rota em até dois minutos. Salve e reabra a página para o script carregar a configuração atualizada.
-- Para uma tentativa, prefira as métricas de interação existentes. **Tentativa de envio**, em **Avançado**, também pode ser usada como meta intermediária quando essa métrica for intencional. **Evento personalizado** atende integrações com JavaScript próprio já existente. O onboarding padrão usa os sinais que a página já fornece.
-
-Escolha a meta que representa o resultado do negócio como **meta principal** dos experimentos que devem medir esse resultado. As metas se aplicam a eventos futuros.
-
-## 5. Valide o onboarding na página publicada
-
-1. Abra a página em desktop e mobile. Confira os atributos no DOM publicado e teste se o botão e o formulário continuam funcionando. O validador em [validate-labels.js](../.agents/skills/label-landing-page/scripts/validate-labels.js) pode ajudar na inspeção das marcações.
-2. Verifique `page_view`, `page_map` e a interação esperada nas requisições para a API. Ao navegar sem recarga, confira se o novo caminho recebe visualização e mapa próprios. Uma resposta de ingestão confirma o recebimento, então verifique também os dados persistidos no dashboard.
-3. Execute uma tentativa que falha e uma que funciona, usando um ambiente ou dados de teste autorizados. A falha deve gerar zero conversões. No teste de sucesso, confirme que a meta registrou uma conversão. Para confirmação na mesma página, verifique também que uma mensagem já visível ao abrir a página ou a repetição da mesma renderização não acrescenta outra conversão.
-4. Se houver um experimento de homologação, selecione a meta principal e confira a atribuição à variante exposta. Registre o domínio, as páginas verificadas, as tags, a meta escolhida e qualquer fluxo cuja confirmação ficou indisponível.
-
-## Referência para manutenção
-
-- Os rótulos geram seletores estáveis como `[data-lo-id="hero-cadastro"]`. Use esse formato exato nos alvos de experimentos. Para mudanças de texto, prefira um alvo só de texto, pois `set_text` substitui os elementos filhos.
-- `cta_click` registra a interação e `form_submit` registra a tentativa. Chegar à URL configurada ou exibir um elemento dedicado é o sinal de sucesso observado pelo produto.
-- Mudanças de ID não migram relatórios, metas ou experimentos existentes. Revise os seletores antes de renomear tags.
-- A detecção de confirmação atua no documento do script. Conteúdo em iframes externos, Shadow DOM e confirmações que só existem no servidor ficam fora desse fluxo.
+4. **Instalação e validação**. Informe onde colocar o script, o que aplicar no CMS, quais testes foram executados e quais ainda dependem de acesso. Se existem apenas métricas de interação, diga quais o operador já pode acompanhar.
