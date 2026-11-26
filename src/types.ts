@@ -19,6 +19,7 @@ export type EventName =
   | 'rage_click'
   | 'form_start'
   | 'form_submit'
+  | 'element_visible'
   | 'section_view'
   | 'hover'
   | 'dwell'
@@ -58,6 +59,7 @@ export interface EventEnvelope {
   ik: string;
   sid: string;
   sentAt: number;
+  eventBaseAt?: number;
   ctx: WireContext;
   events: WireEvent[];
 }
@@ -121,8 +123,15 @@ export interface SiteConfig {
   version: number;
   sampling: number;
   experiments: ConfigExperiment[];
+  confirmationRules?: ConfirmationRule[];
   /** base64 Ed25519 signature over the canonical config minus `sig`. */
   sig: string;
+}
+
+export interface ConfirmationRule {
+  path: string;
+  selector: string;
+  formSelector?: string;
 }
 
 /* -------------------------------------------------------------------------- */

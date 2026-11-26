@@ -1,0 +1,128 @@
+diff --git a/.agents/skills/label-landing-page/SKILL.md b/.agents/skills/label-landing-page/SKILL.md
+--- a/.agents/skills/label-landing-page/SKILL.md
++++ b/.agents/skills/label-landing-page/SKILL.md
+@@ -30,20 +30,15 @@
+ CMS names alone do not establish compatibility; test the customer's actual editor,
+ permissions, published DOM and workflow. Do not invent access or a platform adapter.
+ 
+-For conversions without custom code, prefer an existing success-page URL when it
+-signals the intended outcome; otherwise offer native form submissions explicitly
+-as attempts. A confirmed-success event callback is an optional advanced integration,
+-appropriate when the site exposes one and the user authorizes it. If neither a
+-success URL nor a supported success signal exists, report that confirmed business
+-success cannot yet be measured; never relabel a click/attempt as confirmed success.
+-For a site we own, a custom callback can demonstrate that advanced path, but it
+-must not become a requirement for installing the product on customer sites.
+-
+-Where the editor cannot save labels, the SDK's existing heuristic discovery is
+-available only on pages without any role attributes. Remote selector-to-role/ID
+-mapping, configurable success-element detection, CMS-specific success adapters and
+-SPA remapping are not supplied by this labeling skill. Check current SDK support
+-and report any missing capability instead of injecting per-customer JS to hide it.
++Ask what the published site shows after a successful action. If it reaches an
++exclusive success pathname, use the dashboard's URL goal. If a dedicated success
++element appears on the same route, add a stable data-lo-id to that existing
++element and select the element confirmation goal. The label can be ID-only.
++A form ID can bind the confirmation to the native submission of that form.
++Keep custom JavaScript for existing advanced integrations. If success cannot be
++observed, record the interaction or attempt and say confirmation is unavailable.
++Check the rendered workflow on the actual SDK version, including SPA navigation,
++late-mounted elements and the CMS's ability to save attributes.
+ 
+ ## Inspect and map the page
+ 
+@@ -79,10 +74,10 @@
+   account IDs, email addresses or tokens in identities or mapped copy. Attributes
+   are not a consent system, and unmarked elements are not generally excluded from
+   page-level/dead-click/rage-click collection.
+-- Labels must exist before SDK tracking initializes. Do not inject them after load
+-  or promise support for SPA navigation, late-mounted content, iframes or shadow DOM
+-  without verifying an appropriate lifecycle/integration. Report gaps rather than
+-  inventing a remapping API.
++- Save labels in the client's editor or templates. Verify remapping when the
++  published page navigates without reloading or renders elements late. The SDK
++  observes the main document. For an embedded workflow, check whether its
++  confirmation is exposed to that document.
+ 
+ ## Validate in the rendered page
+ 
+@@ -105,10 +100,9 @@
+ proof that selectors survived sanitization.
+ 
+ Use exact standalone selectors such as `[data-lo-id="hero-signup"]` for experiments.
+-Label a text-only target when `set_text` may be used, because it replaces children.
+-Attributes do not create business conversions: preserve existing success handling
+-and call `LandingOptimizer.conversion(...)` only after a confirmed outcome when
+-that integration is actually requested.
++Label a text-only target when using set_text, because it replaces children.
++Configure the conversion goal in the dashboard after verifying the success
++signal the existing site exposes.
+ 
+ The API must support these selectors before the labeled SDK is deployed. Keep
+ installation keys, origin allowlists, SDK upgrades, deployment and experiment
+@@ -130,8 +124,8 @@
+   already instrumented, integration required, or runtime support unverified.
+   Distinguish goals to add from existing goals to keep/update; do not suggest
+   duplicate goals for unchanged identities.
+-- Inspect the current dashboard/API contract when available. The current kinds
+-  are `event`, `url` and `form_submit`; `cta` is a mapping role, not a goal kind.
++- Inspect the current dashboard/API contract when available. The kinds
++  are `url`, `element_visible`, `form_submit`, `event`; `cta` is a mapping role, not a goal kind.
+   Verify runtime evaluation as well as accepted configuration. A goal being
+   saved successfully does not prove its matcher generates conversions.
+ - An `event` goal's name must exactly match
+@@ -144,6 +138,10 @@
+   e.g. `[data-lo-id="lead-form"]`. Native submission is an attempt, not proof
+   of successful persistence/payment. For `url`, use an actual success pathname
+   and the supported matcher; an anchor such as `#contact` is not a success page.
++- For element_visible, provide the exact path, success element data-lo-id and
++  optional native form data-lo-id. The marker must be absent or hidden before
++  the action and appear only on success. Test that failure and repeated renders
++  create no extra conversions. Reopen the site after saving the goal.
+ - With the updated API, matching `page_view` and `form_submit` events generate
+   conversions at ingestion for their configured goals. Keep business success
+   separate from submission attempts. These rules apply to incoming events after
+diff --git a/.agents/skills/label-landing-page/references/labeling-contract.md b/.agents/skills/label-landing-page/references/labeling-contract.md
+--- a/.agents/skills/label-landing-page/references/labeling-contract.md
++++ b/.agents/skills/label-landing-page/references/labeling-contract.md
+@@ -1,10 +1,9 @@
+-> Contract snapshot verified against the Landing Optimizer SDK and API on 2026-11-12.
++> Contract for the single-tag installation and dashboard conversion goals.
+ > Source: landing-optimizer-snippet/docs/CLIENT_LABELING.md. If a different SDK version is used, verify compatibility before applying labels.
+ 
+ # Client website labeling
+ 
+-Use dedicated HTML attributes, not CSS classes. Labels must be present before
+-the snippet initializes. Put them in the client's templates, components or CMS;
++Use dedicated HTML attributes, not CSS classes. Save labels in the client's templates, components or CMS;
+ labels added only in browser developer tools disappear on reload.
+ 
+ ## Attribute contract
+@@ -100,9 +99,11 @@
+ - **Page-level behavior:** page views, scroll, dwell and dropoff continue.
+   Dead/rage clicks can still describe unmarked elements; labels are not a
+   general collection allowlist. Use `data-lo-ignore` for sensitive subtrees.
+-- **Business outcomes:** attributes do not infer conversions. Call
+-  `LandingOptimizer.conversion("signup")` after confirmed success, or configure
+-  the appropriate business goal separately.
++- **Business outcomes:** configure an existing success pathname or dedicated
++  success element in the dashboard. An element goal uses its data-lo-id, which
++  can stand alone. Test after an interaction on the configured route, optionally
++  tied to the native submission of a marked form. The callback is available
++  for advanced integrations that already use custom JavaScript.
+ 
+ IDs produce selectors such as `[data-lo-id="hero-signup"]` consistently for
+ mapping, CTA/form events, hover, visibility, snapshots and experiment targeting.
+@@ -127,9 +128,9 @@
+ 3. Check ID uniqueness and spelling, ignored areas, page-map nodes, one CTA click,
+    form focus/submit and a section view in the browser network payloads. Verify
+    persisted selectors and a draft experiment on a staging client page.
+-4. Labels must exist at initialization. There is no automatic SPA navigation,
+-   late-content remapping or continuous registration. Full-page navigation works;
+-   dynamically mounted content requires a separate lifecycle solution.
++4. Verify late-mounted content and path changes without a full reload on the
++   installed SDK. Confirmation observers use the document hosting the SDK.
++   Use the supported URL or element signal where it is accessible.
+ 
+ Attribute IDs change selector identity relative to older ID/class/path selectors.
+ Historical selector-specific reports/goals/experiments do not automatically merge

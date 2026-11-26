@@ -8,12 +8,14 @@ import type { EventEnvelope, SdkConfig, WireContext, WireEvent } from './types';
  */
 export class Transport {
   private buffer: WireEvent[] = [];
+  private context: WireContext | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly config: SdkConfig,
     private readonly ctx: () => WireContext,
     private readonly sid: () => string,
+    private readonly eventBaseAt?: number,
   ) {}
 
   start(): void {
@@ -27,13 +29,16 @@ export class Transport {
     window.addEventListener('pagehide', flushNow);
   }
 
-  enqueue(event: WireEvent): void {
+  enqueue(event: WireEvent, eventPath: string): void {
+    const path = eventPath.slice(0, 512);
+    if (this.context && this.context.path !== path) this.flush();
+    this.context ??= { ...this.ctx(), path };
     this.buffer.push(event);
     if (this.buffer.length >= LIMITS.batchMaxEvents) this.flush();
   }
 
   flush(useBeacon = false): void {
-    if (this.buffer.length === 0) return;
+    if (!this.context || this.buffer.length === 0) return;
     const batch = this.buffer.splice(0, LIMITS.batchMaxEvents);
     const envelope: EventEnvelope = {
       v: 1,
@@ -41,9 +46,11 @@ export class Transport {
       ik: this.config.ingestKey,
       sid: this.sid(),
       sentAt: Date.now(),
-      ctx: this.ctx(),
+      ...(this.eventBaseAt === undefined ? {} : { eventBaseAt: this.eventBaseAt }),
+      ctx: this.context,
       events: batch,
     };
+    this.context = null;
     this.send(envelope, useBeacon);
   }
 

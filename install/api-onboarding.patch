@@ -1,0 +1,366 @@
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -37,6 +37,7 @@
+   event
+   url
+   form_submit
++  element_visible
+ }
+ 
+ enum ExperimentType {
+diff --git a/prisma/migrations/20261126120000_confirmation_element_goal/migration.sql b/prisma/migrations/20261126120000_confirmation_element_goal/migration.sql
+new file mode 100644
+--- /dev/null
++++ b/prisma/migrations/20261126120000_confirmation_element_goal/migration.sql
+@@ -0,0 +1 @@
++ALTER TYPE "GoalKind" ADD VALUE 'element_visible';
+diff --git a/src/modules/goals/goals.dto.ts b/src/modules/goals/goals.dto.ts
+--- a/src/modules/goals/goals.dto.ts
++++ b/src/modules/goals/goals.dto.ts
+@@ -1,5 +1,5 @@
+ import { z } from 'zod';
+-import { sanitizeSelector } from '../events/event-scrub';
++import { sanitizePath, sanitizeSelector } from '../events/event-scrub';
+ 
+ /**
+  * Conversion goal matchers, keyed by goal kind. The matcher shape is validated
+@@ -40,10 +40,24 @@
+   .strict()
+   .default({});
+ 
++const ConfirmationSelectorSchema = z.string().trim()
++  .regex(/^\[data-lo-id="[a-z][a-z0-9-]{0,63}"\]$/)
++  .refine(value => sanitizeSelector(value) === value, 'expected a safe data-lo-id selector');
++
++const ElementVisibleMatcherSchema = z.object({
++  path: z.string().trim().max(512).regex(/^\/(?!\/)[^?#\s]*$/)
++    .refine(value => sanitizePath(value) === value, 'expected an exact safe pathname'),
++  selector: ConfirmationSelectorSchema,
++  formSelector: ConfirmationSelectorSchema.optional(),
++}).strict();
++
++export type ElementVisibleMatcher = z.infer<typeof ElementVisibleMatcherSchema>;
++
+ const MATCHER_SCHEMAS = {
+   event: EventMatcherSchema,
+   url: UrlMatcherSchema,
+   form_submit: FormSubmitMatcherSchema,
++  element_visible: ElementVisibleMatcherSchema,
+ } as const;
+ 
+ export type GoalKind = keyof typeof MATCHER_SCHEMAS;
+@@ -71,7 +85,7 @@
+ export const CreateGoalSchema = z
+   .object({
+     name: GoalNameSchema,
+-    kind: z.enum(['event', 'url', 'form_submit']).default('event'),
++    kind: z.enum(['event', 'url', 'form_submit', 'element_visible']).default('event'),
+     matcher: z.unknown().optional(),
+     isFavorite: z.boolean().optional(),
+   })
+diff --git a/src/modules/goals/goal-matcher.ts b/src/modules/goals/goal-matcher.ts
+--- a/src/modules/goals/goal-matcher.ts
++++ b/src/modules/goals/goal-matcher.ts
+@@ -1,9 +1,16 @@
+ import { runInNewContext } from 'node:vm';
+ import type { ConversionGoal } from '@prisma/client';
+ import { sanitizePath, sanitizeSelector } from '../events/event-scrub';
++import type { WireEvent } from '../events/event-scrub';
++import type { ElementVisibleMatcher } from './goals.dto';
+ import type { EventRow } from '../analytics/clickhouse/clickhouse.service';
+ 
+-export function matchesGoal(goal: Pick<ConversionGoal, 'kind' | 'matcher'>, row: EventRow): boolean {
++export function matchesGoal(goal: Pick<ConversionGoal, 'kind' | 'matcher'>, row: EventRow, source?: WireEvent): boolean {
++  if (goal.kind === 'element_visible') {
++    const { path, selector, formSelector } = goal.matcher as ElementVisibleMatcher;
++    return row.event_name === 'element_visible' && row.page_path === path &&
++      row.selector === selector && source?.p?.formSelector === formSelector;
++  }
+   const matcher = goal.matcher as { op?: string; path?: string; selector?: string };
+   if (goal.kind === 'form_submit') {
+     return row.event_name === 'form_submit' && (!matcher.selector || (
+diff --git a/src/modules/events/event-scrub.ts b/src/modules/events/event-scrub.ts
+--- a/src/modules/events/event-scrub.ts
++++ b/src/modules/events/event-scrub.ts
+@@ -14,6 +14,7 @@
+   'rage_click',
+   'form_start',
+   'form_submit',
++  'element_visible',
+   'section_view',
+   'hover',
+   'dwell',
+@@ -45,6 +46,7 @@
+   ik: z.string().min(1).max(128),
+   sid: z.string().min(1).max(128),
+   sentAt: z.number().optional(),
++  eventBaseAt: z.number().nonnegative().optional(),
+   ctx: z.object({
+     path: z.string().max(512),
+     ref: z.string().max(255).default(''),
+diff --git a/src/modules/events/events.service.ts b/src/modules/events/events.service.ts
+--- a/src/modules/events/events.service.ts
++++ b/src/modules/events/events.service.ts
+@@ -70,8 +70,13 @@
+     const sessionId = this.siteAuth.pseudoSession(envelope.sid, site.siteId);
+     const now = new Date();
+     const latestOffset = Math.max(...behavioral.map(e => e.t));
++    const clientBase = envelope.eventBaseAt;
++    const latestClientEvent = clientBase === undefined ? NaN : clientBase + latestOffset;
++    const base = Math.abs(now.getTime() - latestClientEvent) <= 60_000
++      ? Math.min(latestClientEvent, now.getTime()) - latestOffset
++      : now.getTime() - latestOffset;
+     const rows: EventRow[] = behavioral.map((e) => ({
+-      event_time: fmt(new Date(now.getTime() - latestOffset + e.t)),
++      event_time: fmt(new Date(base + e.t)),
+       tenant_id: site.tenantId,
+       site_id: site.siteId,
+       session_id: sessionId,
+@@ -94,22 +99,29 @@
+     }));
+ 
+     try {
+-      if (behavioral.some(e => e.n === 'page_view' || e.n === 'form_submit')) {
++      if (behavioral.some(e => e.n === 'page_view' || e.n === 'form_submit' || e.n === 'element_visible')) {
+         const goals = await this.prisma.conversionGoal.findMany({
+-          where: { siteId: site.siteId, site: { tenantId: site.tenantId }, kind: { in: ['url', 'form_submit'] } },
++          where: { siteId: site.siteId, site: { tenantId: site.tenantId }, kind: { in: ['url', 'form_submit', 'element_visible'] } },
+         });
+         const conversions: EventRow[] = [];
+-        const pageView = rows.find(row => row.event_name === 'page_view');
++        const seenConfirmations = new Set<string>();
+         for (const goal of goals) {
+-          const urlMatch = goal.kind === 'url' && pageView !== undefined && matchesGoal(goal, pageView);
+-          for (const row of rows) {
+-            const matches = goal.kind === 'url' ? urlMatch && row.event_name === 'page_view' : matchesGoal(goal, row);
+-            if (matches) conversions.push({ ...row, event_name: 'conversion', goal: goal.name, value: 1 });
++          const urlMatch = goal.kind === 'url' && rows.some(row => matchesGoal(goal, row));
++          for (const [index, row] of rows.entries()) {
++            if (goal.kind === 'url' ? !urlMatch || row.event_name !== 'page_view' : !matchesGoal(goal, row, behavioral[index])) continue;
++            if (goal.kind === 'element_visible') {
++              const key = JSON.stringify([goal.id, behavioral[index]?.t]);
++              if (seenConfirmations.has(key)) continue;
++              seenConfirmations.add(key);
++            }
++            conversions.push({ ...row, event_name: 'conversion', goal: goal.name, value: 1 });
+           }
+         }
+         rows.push(...conversions);
+       }
+-      await this.ch.insertEvents(rows);
++      // Confirmation signals are used to evaluate configured goals for this site.
++      const stored = rows.filter(row => row.event_name !== 'element_visible');
++      if (stored.length > 0) await this.ch.insertEvents(stored);
+     } catch {
+       logger.warn('event_batch_dropped', {
+         site_id: site.siteId,
+@@ -128,8 +140,8 @@
+    */
+   private async persistPageMap(siteId: string, events: WireEvent[]): Promise<void> {
+     try {
+-      const first = events[0];
+-      const payload = first ? parsePageMapPayload(first.p) : null;
++      const latest = events[events.length - 1];
++      const payload = latest ? parsePageMapPayload(latest.p) : null;
+       if (!payload) return;
+ 
+       const allowed = await this.redis.allow(
+diff --git a/src/modules/sites/site-config.service.ts b/src/modules/sites/site-config.service.ts
+--- a/src/modules/sites/site-config.service.ts
++++ b/src/modules/sites/site-config.service.ts
+@@ -4,6 +4,7 @@
+ import { CryptoService } from '../../common/crypto/crypto.service';
+ import { writeAudit } from '../../common/audit/audit.module';
+ import type { Prisma } from '@prisma/client';
++import type { ElementVisibleMatcher } from '../goals/goals.dto';
+ 
+ /** Wire shape served to the snippet — mirrors snippet/src/types.ts SiteConfig. */
+ export interface WireChange {
+@@ -30,6 +31,7 @@
+   version: number;
+   sampling: number;
+   experiments: WireExperiment[];
++  confirmationRules?: ElementVisibleMatcher[];
+   sig: string;
+ }
+ 
+@@ -91,11 +93,22 @@
+       })),
+     }));
+ 
++    const goals = await db.conversionGoal.findMany({
++      where: { siteId, kind: 'element_visible' },
++      select: { matcher: true },
++      orderBy: { id: 'asc' },
++    });
++    const confirmationRules = Array.from(new Map(goals.map(goal => {
++      const { path, selector, formSelector } = goal.matcher as ElementVisibleMatcher;
++      return [JSON.stringify([path, selector, formSelector]), { path, selector, ...(formSelector ? { formSelector } : {}) }];
++    })).values());
++
+     const unsigned = {
+       siteId: site.id,
+       version,
+       sampling: Number(site.samplingRate),
+       experiments: wireExperiments,
++      ...(confirmationRules.length ? { confirmationRules } : {}),
+     };
+     const sig = this.crypto.signConfig(site.privateKeyEnc, unsigned);
+     return { ...unsigned, sig };
+diff --git a/src/modules/goals/goals.service.ts b/src/modules/goals/goals.service.ts
+--- a/src/modules/goals/goals.service.ts
++++ b/src/modules/goals/goals.service.ts
+@@ -36,6 +36,7 @@
+     await this.assertNameAvailable(siteId, dto.name);
+ 
+     return this.prisma.$transaction(async tx => {
++      if (dto.kind === 'element_visible') await this.advanceConfig(tx, siteId);
+       if (dto.isFavorite) await this.clearFavorite(tx, user.tenantId, siteId);
+       const goal = await tx.conversionGoal.create({
+         data: {
+@@ -100,6 +101,7 @@
+     if (Object.keys(data).length === 0) return goal;
+ 
+     return this.prisma.$transaction(async tx => {
++      if (goal.kind === 'element_visible' && dto.matcher !== undefined) await this.advanceConfig(tx, siteId);
+       if (dto.isFavorite) await this.clearFavorite(tx, user.tenantId, siteId);
+       const updated = await tx.conversionGoal.update({ where: { id: goalId }, data });
+       await this.audit.log({
+@@ -116,7 +118,7 @@
+ 
+   async remove(user: AuthUser, siteId: string, goalId: string): Promise<void> {
+     await this.requireSite(user.tenantId, siteId);
+-    await this.requireGoal(siteId, goalId);
++    const goal = await this.requireGoal(siteId, goalId);
+ 
+     const activeReferences = await this.prisma.experiment.count({
+       where: { primaryGoalId: goalId, status: { notIn: TERMINAL_STATUSES } },
+@@ -128,6 +130,7 @@
+     }
+ 
+     await this.prisma.$transaction(async tx => {
++      if (goal.kind === 'element_visible') await this.advanceConfig(tx, siteId);
+       await tx.conversionGoal.delete({ where: { id: goalId } });
+       await this.audit.log({
+         tenantId: user.tenantId,
+@@ -141,6 +144,10 @@
+   }
+ 
+   /* ------------------------------- helpers -------------------------------- */
++
++  private async advanceConfig(tx: Prisma.TransactionClient, siteId: string): Promise<void> {
++    await tx.site.update({ where: { id: siteId }, data: { configVersion: { increment: 1 } } });
++  }
+ 
+   private async clearFavorite(tx: Prisma.TransactionClient, tenantId: string, siteId: string): Promise<void> {
+     await tx.$queryRaw`SELECT id FROM site WHERE id = ${siteId} AND tenant_id = ${tenantId} FOR UPDATE`;
+diff --git a/src/modules/sites/sites.service.ts b/src/modules/sites/sites.service.ts
+--- a/src/modules/sites/sites.service.ts
++++ b/src/modules/sites/sites.service.ts
+@@ -256,17 +256,16 @@
+ }
+ 
+ function buildSnippet(p: SnippetParams): string {
+-  const cfg = JSON.stringify(
+-    {
+-      siteId: p.siteId,
+-      ingestKey: p.ingestKey,
+-      publicKey: p.publicKey,
+-      sdkUrl: p.sdkUrl,
+-      ingestUrl: p.ingestUrl,
+-      configUrl: p.configUrl,
+-    },
+-    null,
+-    0,
++  const attrs = {
++    src: p.sdkUrl,
++    'data-site-id': p.siteId,
++    'data-ingest-key': p.ingestKey,
++    'data-public-key': p.publicKey,
++    'data-ingest-url': p.ingestUrl,
++    'data-config-url': p.configUrl,
++  };
++  const encoded = Object.entries(attrs).map(([name, value]) =>
++    name + '="' + value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '"',
+   );
+-  return `<script>window.__LO_CONFIG=${cfg};(function(w,d){w.LandingOptimizer=w.LandingOptimizer||{q:[],track:function(){this.q.push(["track",[].slice.call(arguments)])},conversion:function(){this.q.push(["conversion",[].slice.call(arguments)])},identifyCompanyContext:function(){this.q.push(["identifyCompanyContext",[].slice.call(arguments)])}};var c=w.__LO_CONFIG,s=d.createElement("script");s.async=true;s.src=c.sdkUrl;s.crossOrigin="anonymous";s.setAttribute("data-site-id",c.siteId);s.setAttribute("data-ingest-key",c.ingestKey);s.setAttribute("data-public-key",c.publicKey);s.setAttribute("data-ingest-url",c.ingestUrl);s.setAttribute("data-config-url",c.configUrl);var f=d.getElementsByTagName("script")[0];f&&f.parentNode?f.parentNode.insertBefore(s,f):(d.head||d.documentElement).appendChild(s)})(window,document);</script>`;
+-}
++  return '<script async crossorigin="anonymous" ' + encoded.join(' ') + '></script>';
++}
+diff --git a/test/goal-conversions.test.ts b/test/goal-conversions.test.ts
+--- a/test/goal-conversions.test.ts
++++ b/test/goal-conversions.test.ts
+@@ -60,7 +60,7 @@
+       { n: 'page_view', t: 2 }, { n: 'form_submit', t: 3, sel: selector },
+       { n: 'conversion', t: 4, goal: 'lead_received' },
+     ]), 'https://client.example', undefined);
+-    expect(findMany).toHaveBeenCalledWith({ where: { siteId, site: { tenantId: siteId }, kind: { in: ['url', 'form_submit'] } } });
++    expect(findMany).toHaveBeenCalledWith({ where: { siteId, site: { tenantId: siteId }, kind: { in: ['url', 'form_submit', 'element_visible'] } } });
+     const rows = insertEvents.mock.calls[0]![0] as EventRow[];
+     expect(rows).toHaveLength(6);
+     expect(rows.filter(e => e.event_name === 'conversion').map(e => e.goal)).toEqual(['lead_received', 'thanks', 'submit']);
+@@ -68,6 +68,24 @@
+     expect(rows[4]!.event_time).toBe(rows[1]!.event_time);
+     expect(rows[5]!.selector).toBe(selector);
+     expect(rows.every(e => e.page_path === '/thank-you' && e.session_id === 'opaque')).toBe(true);
++  });
++
++  it('deduplicates the same confirmation signal while preserving separate successful attempts', async () => {
++    const confirmation = '[data-lo-id="confirmed"]';
++    const { service, insertEvents } = setup([
++      { id: 'confirmed', name: 'confirmed', kind: 'element_visible', matcher: {
++        path: '/thank-you', selector: confirmation, formSelector: selector,
++      } },
++    ]);
++    const signal = { n: 'element_visible', t: 3, sel: confirmation, p: { formSelector: selector } };
++    await service.ingest(envelope([
++      { n: 'form_submit', t: 1, sel: selector },
++      signal, signal, { ...signal, t: 5 }, { ...signal, t: 8, p: {} },
++    ]), undefined, undefined);
++    const rows = insertEvents.mock.calls[0]![0] as EventRow[];
++    expect(rows.map(row => [row.event_name, row.goal])).toEqual([
++      ['form_submit', ''], ['conversion', 'confirmed'], ['conversion', 'confirmed'],
++    ]);
+   });
+ 
+   it('keeps explicit conversion events without synthesizing duplicates', async () => {
+@@ -84,3 +102,14 @@
+     expect(insertEvents).not.toHaveBeenCalled();
+   });
+ });
++
++it('matches a confirmation only on its configured route, element and form', () => {
++  const selector = '[data-lo-id="signup-confirmed"]';
++  const formSelector = '[data-lo-id="signup-form"]';
++  const goal = { kind: 'element_visible' as const, matcher: { path: '/signup', selector, formSelector } };
++  const signal = { n: 'element_visible' as const, t: 1, p: { formSelector } };
++  expect(matchesGoal(goal, row('element_visible', '/signup', selector), signal)).toBe(true);
++  expect(matchesGoal(goal, row('element_visible', '/other', selector), signal)).toBe(false);
++  expect(matchesGoal(goal, row('form_submit', '/signup', selector), signal)).toBe(false);
++  expect(matchesGoal(goal, row('element_visible', '/signup', selector), { ...signal, p: {} })).toBe(false);
++});
+diff --git a/test/security-boundaries.test.ts b/test/security-boundaries.test.ts
+--- a/test/security-boundaries.test.ts
++++ b/test/security-boundaries.test.ts
+@@ -62,7 +62,7 @@
+ 
+ it('rebuilds an outdated signed config without a public GET mutating the database', async () => {
+   const site = { id: 'site', tenantId: 'tenant', status: 'active', configVersion: 4, samplingRate: 1, privateKeyEnc: Buffer.from('key'), tenant: { archivedAt: null } };
+-  const prisma = { site: { findUnique: vi.fn().mockResolvedValue(site), update: vi.fn() }, experiment: { findMany: vi.fn().mockResolvedValue([]) }, $queryRaw: vi.fn().mockResolvedValue([{ id: 'site' }]), $transaction: vi.fn() };
++  const prisma = { site: { findUnique: vi.fn().mockResolvedValue(site), update: vi.fn() }, experiment: { findMany: vi.fn().mockResolvedValue([]) }, conversionGoal: { findMany: vi.fn().mockResolvedValue([]) }, $queryRaw: vi.fn().mockResolvedValue([{ id: 'site' }]), $transaction: vi.fn() };
+   prisma.$transaction.mockImplementation(async fn => fn(prisma));
+   const redis = { get: vi.fn().mockResolvedValue(JSON.stringify({ siteId: 'site', version: 3, experiments: [{ id: 'stale-running-experiment' }] })), set: vi.fn() };
+   const service = new SiteConfigService(prisma as never, redis as never, { signConfig: () => 'signature' } as never);
+diff --git a/test/experiment-decision.test.ts b/test/experiment-decision.test.ts
+--- a/test/experiment-decision.test.ts
++++ b/test/experiment-decision.test.ts
+@@ -33,7 +33,7 @@
+     { id: 'accepted', status: 'accepted', winnerVariantId: 'proposal', allocation: .5, variants: [{ id: 'control', weight: .5, isControl: true, changes: [] }, { id: 'proposal', weight: .5, isControl: false, changes: [] }] },
+     { id: 'running', status: 'running', allocation: .5, variants: [{ id: 'control', weight: .5, isControl: true, changes: [] }, { id: 'other', weight: .5, isControl: false, changes: [] }] },
+   ]) } };
+-  const lockedDb = { ...db, $queryRaw: vi.fn().mockResolvedValue([{ id: 'site' }]) };
++  const lockedDb = { ...db, conversionGoal: { findMany: vi.fn().mockResolvedValue([]) }, $queryRaw: vi.fn().mockResolvedValue([{ id: 'site' }]) };
+   const config = new SiteConfigService({ ...lockedDb, $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(lockedDb) } as never, { get: vi.fn(), set: vi.fn() } as never, { signConfig: () => 'signature' } as never);
+   const result = await config.get('site');
+   expect(result?.experiments[0]).toMatchObject({ allocation: 1, permanent: true, variants: [{ id: 'proposal', weight: 1, isControl: false }] });

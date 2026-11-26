@@ -6,19 +6,22 @@ async bundle. **No PII is ever collected.** See
 
 ## Install
 
-Paste the generated snippet (see [install/snippet.template.html](install/snippet.template.html))
-just before `</head>`. It loads asynchronously and fails silently.
+Copy the site's generated `<script>` tag from the dashboard and paste it into
+the shared `<head>`. See the [client onboarding guide](docs/CLIENT_LABELING.md)
+and the [tag template](install/snippet.template.html).
 
 ### Label client pages
 
 Use `data-lo-role` and a unique `data-lo-id` on each element to map and track.
 Any role attribute enables manual mapping for that page; unlabeled pages keep
-automatic discovery. See the complete [client labeling guide](docs/CLIENT_LABELING.md)
-for all ten roles, examples, tracking behavior and API-first rollout requirements.
+automatic discovery. Configure the site's existing success page or success
+element as the conversion goal in the dashboard.
 
 For coding agents, use the portable [label-landing-page skill](.agents/skills/label-landing-page/SKILL.md).
 Copy its complete folder into another site's `.agents/skills/` directory to reuse
-the labeling workflow, bundled contract and read-only browser validator.
+the labeling workflow, bundled contract and read-only browser validator. The
+[skill update](install/labeling-skill-onboarding.patch) brings its onboarding
+instructions in line with the single-tag flow.
 
 ### Public API
 ```js
@@ -26,7 +29,9 @@ window.LandingOptimizer.track("cta_click", { section: "hero" });        // custo
 window.LandingOptimizer.identifyCompanyContext({ plan: "pro" });        // non-PII B2B only
 window.LandingOptimizer.conversion("signup", { value: 1 });             // conversion goal
 ```
-Calls made before the SDK finishes loading are queued and replayed.
+The legacy inline loader queues calls made before the SDK finishes loading.
+The single-tag installation is for automatic tracking. Advanced integrations
+that call the public API should wait for it to load or use the legacy loader.
 
 ### Google Tag Manager
 Use a **Custom HTML** tag with the snippet from `install/snippet.template.html`,
@@ -38,9 +43,15 @@ Add to your Content-Security-Policy:
 script-src  'self' https://cdn.landingoptimizer.io;
 connect-src 'self' https://ingest.landingoptimizer.io https://cdn.landingoptimizer.io;
 ```
-The inline stub is small; if you enforce `script-src` without `'unsafe-inline'`,
-add a nonce/hash to the inline `<script>` (the dashboard shows the hash), or host
-the loader from the CDN and reference it with `src` only.
+The generated tag loads an external script. Use the origins shown in the
+dashboard for your environment.
+
+### Release order
+
+Regenerate the Prisma client and apply the PostgreSQL migration for element
+confirmation goals from the API repository. Release the API with the updated
+SDK bundle, then the dashboard. Existing inline snippets continue to work when
+their SDK URL serves the updated bundle.
 
 ## Privacy guarantees
 - Never reads form values, `input[type=password]`, or `[data-lo-ignore]` subtrees.

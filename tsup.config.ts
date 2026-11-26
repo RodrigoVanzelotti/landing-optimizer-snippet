@@ -3,8 +3,7 @@ import { defineConfig } from 'tsup';
 /**
  * Three build outputs:
  *  - `lo.js`        : the full SDK bundle loaded async from the CDN (IIFE, minified).
- *  - `loader.js`    : the tiny inline loader that customers paste (also generated
- *                     server-side per site; this is the canonical source).
+ *  - `loader.js`    : compatibility loader for sites that queue SDK calls.
  *  - `lo-capture.js`: operator-only snapshot capture, lazy-loaded by lo.js when
  *                     the page is opened with ?lo_capture=1. Never loaded for
  *                     real visitors, so it does not count against the core

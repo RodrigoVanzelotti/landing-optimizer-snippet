@@ -10,7 +10,7 @@ vi.mock('../src/experiments', () => ({ ExperimentEngine: vi.fn(function () { ret
 vi.mock('../src/session', () => ({ getSessionId: vi.fn() }));
 vi.mock('../src/tracker', () => ({ Tracker: vi.fn() }));
 vi.mock('../src/transport', () => ({ Transport: vi.fn() }));
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { delete window.LandingOptimizer; vi.restoreAllMocks(); });
 it.each([0, .5])('keeps tracking disabled at sampling zero, including random=%s, without creating a session ID', async random => {
   vi.resetModules();
   vi.clearAllMocks();

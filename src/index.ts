@@ -21,7 +21,7 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
 (function bootstrap(): void {
   try {
     const config = readConfig();
-    if (!config) return; // missing/invalid install — do nothing, silently.
+    if (!config || window.LandingOptimizer?._ready) return;
 
     // Must be resolved synchronously while document.currentScript is valid.
     const scriptSrc = sdkScriptSrc();
@@ -48,10 +48,9 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
       lang: detectLanguage(),
     });
 
-    const transport = new Transport(config, ctx, () => sid);
-    transport.start();
-
-    const tracker = new Tracker(transport);
+    const eventBaseAt = Date.now();
+    const transport = new Transport(config, ctx, () => sid, eventBaseAt);
+    const tracker = new Tracker(transport, eventBaseAt);
 
     // Public API — replace the loader stub and drain any queued calls.
     const existing = window.LandingOptimizer;
@@ -75,10 +74,11 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
       } catch {
         /* best-effort */
       }
+      transport.start();
       const engine = new ExperimentEngine(config, sid, device, (exp, variant) =>
         tracker.exposure(exp, variant),
       );
-      void engine.run();
+      void engine.run(false, (site) => tracker.setConfirmationRules(site.confirmationRules ?? []));
 
       // Operator-only snapshot capture: lazy-load the separate capture bundle
       // when the page is opened with ?lo_capture=1. Real visitors never hit

@@ -1,6 +1,5 @@
 /**
- * Tiny async loader. This is the canonical source for the inline stub that
- * customers paste (the API generates a minified, per-site copy). It:
+ * Tiny async loader for legacy integrations. It:
  *   1. Installs a queueing stub API immediately so early calls are not lost.
  *   2. Injects the full SDK bundle (`lo.js`) asynchronously (never blocks).
  * Config is read from `window.__LO_CONFIG`.

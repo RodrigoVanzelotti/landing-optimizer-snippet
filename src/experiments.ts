@@ -26,9 +26,9 @@ export class ExperimentEngine {
     private readonly onExposure: (experimentId: string, variantId: string) => void,
   ) {}
 
-  async run(permanentOnly = false): Promise<void> {
+  async run(permanentOnly = false, onConfig?: (site: SiteConfig) => void): Promise<void> {
     const site = await this.fetchConfig();
-    if (!site) return;
+    if (!site || site.siteId !== this.config.siteId) return;
     const ok = await verifySignature(this.config.publicKey, site);
     if (!ok) {
       this.debug('config signature invalid — experiments skipped');
@@ -42,6 +42,7 @@ export class ExperimentEngine {
         /* one bad experiment must not break the others or the page */
       }
     }
+    onConfig?.(site);
   }
 
   private async fetchConfig(): Promise<SiteConfig | null> {

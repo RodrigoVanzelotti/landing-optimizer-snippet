@@ -1,10 +1,12 @@
 import { LIMITS } from './config';
+import { ConfirmationTracker } from './confirmation';
+import { currentPath } from './detect';
 import { HoverTracker } from './hover';
 import { detectCtas, buildPageMap, hasManualMapping, stableSelector } from './pagemap';
 import type { PageMap } from './pagemap';
 import { sanitizeProps } from './sanitize';
 import type { Transport } from './transport';
-import type { EventName, WireEvent } from './types';
+import type { ConfirmationRule, EventName, WireEvent } from './types';
 
 /**
  * Wires up privacy-preserving behavioral listeners and exposes the public
@@ -12,25 +14,110 @@ import type { EventName, WireEvent } from './types';
  * values, password fields, or elements marked `data-lo-ignore`.
  */
 export class Tracker {
-  private navStart = Date.now();
+  private navStart: number;
+  private path = currentPath();
   private scrollFired = new Set<number>();
   private clickTimes: number[] = [];
-  private sectionSeen = new Set<Element>();
+  private sectionSeen = new WeakSet<Element>();
+  private formSeen = new WeakSet<Element>();
+  private sectionObserver: IntersectionObserver | undefined;
+  private ctas = new Set<Element>();
+  private forms: Set<Element | null> | null = null;
+  private mapPayload = '';
+  private mapTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly hover = new HoverTracker(({ sel, dw }) => this.emit('hover', { sel, dw }));
+  private readonly confirmations = new ConfirmationTracker((sel, formSelector) =>
+    this.emit('element_visible', { sel, ...(formSelector ? { p: { formSelector } } : {}) }),
+  );
 
-  constructor(private readonly transport: Transport) {}
+  constructor(private readonly transport: Transport, private readonly startedAt = Date.now()) {
+    this.navStart = startedAt;
+  }
 
   init(): void {
+    this.path = currentPath();
     this.emit('page_view');
-    // Build the structural page map once and share it: section visibility,
-    // hover attention, and the page_map event all read the same snapshot.
-    const map = safeBuildPageMap();
+    this.hover.init([]);
+    this.refreshMap();
     this.trackScrollDepth();
     this.trackClicks();
-    this.trackForms(map);
-    this.trackSectionVisibility(map);
-    this.trackHover(map);
+    this.trackForms();
     this.trackDwell();
+    this.trackNavigation();
+    this.observeDom();
+  }
+
+  setConfirmationRules(rules: ConfirmationRule[]): void {
+    this.confirmations.setRules(rules);
+  }
+
+  private refreshMap(): void {
+    const map = safeBuildPageMap();
+    this.ctas = new Set(detectCtas());
+    this.forms = hasManualMapping()
+      ? new Set(map.nodes.filter((node) => node.role === 'form').map((node) => safeQuery(node.selector)))
+      : null;
+    this.trackSectionVisibility(map);
+    this.hover.setNodes(map.nodes);
     this.sendPageMap(map);
+  }
+
+  private scheduleMap(): void {
+    if (this.mapTimer !== undefined) return;
+    this.mapTimer = setTimeout(() => {
+      this.mapTimer = undefined;
+      this.refreshMap();
+    }, 100);
+  }
+
+  private trackNavigation(): void {
+    const check = (): void => {
+      const next = currentPath();
+      if (next === this.path) return;
+      this.hover.flush();
+      this.hover.setNodes([]);
+      this.sectionObserver?.disconnect();
+      this.sectionObserver = undefined;
+      this.path = next;
+      this.navStart = Date.now();
+      this.mapPayload = '';
+      this.ctas.clear();
+      this.forms = hasManualMapping() ? new Set() : null;
+      this.formSeen = new WeakSet();
+      this.sectionSeen = new WeakSet();
+      this.scrollFired.clear();
+      this.clickTimes = [];
+      this.confirmations.reset();
+      this.emit('page_view');
+      this.scheduleMap();
+    };
+    window.addEventListener('popstate', check);
+    for (const method of ['pushState', 'replaceState'] as const) {
+      const original = history[method];
+      history[method] = function (...args: Parameters<History[typeof method]>): void {
+        original.apply(this, args);
+        try { check(); } catch { /* tracking must not break navigation */ }
+      };
+    }
+  }
+
+  private observeDom(): void {
+    if (typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver((mutations) => {
+      this.confirmations.check();
+      if (mutations.some((mutation) =>
+        mutation.attributeName?.startsWith('data-lo-') ||
+        [...mutation.addedNodes, ...mutation.removedNodes].some((node) => node.nodeType === 1),
+      )) this.scheduleMap();
+    });
+    observer.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['hidden', 'aria-hidden', 'class', 'style', 'open', 'data-lo-id', 'data-lo-role', 'data-lo-ignore'],
+    });
+    document.addEventListener('transitionend', () => this.confirmations.check(), { capture: true });
+    document.addEventListener('animationend', () => this.confirmations.check(), { capture: true });
   }
 
   /* ----------------------------- public API ----------------------------- */
@@ -56,8 +143,8 @@ export class Tracker {
   /* --------------------------- internal helpers -------------------------- */
 
   private emit(n: EventName, extra: Partial<WireEvent> = {}): void {
-    const event: WireEvent = { n, t: Date.now() - this.navStart, ...extra };
-    this.transport.enqueue(event);
+    const event: WireEvent = { n, t: Date.now() - this.startedAt, ...extra };
+    this.transport.enqueue(event, this.path);
   }
 
   private trackScrollDepth(): void {
@@ -77,14 +164,13 @@ export class Tracker {
   }
 
   private trackClicks(): void {
-    const ctaSet = new Set(detectCtas());
-    const manual = hasManualMapping();
     document.addEventListener(
       'click',
       (e) => {
         const target = e.target as Element | null;
         if (!target || this.isIgnored(target)) return;
         const el = target.closest('a,button,[role="button"],input,[data-lo-role="cta"]');
+        if (el && e.isTrusted) this.confirmations.arm(this.path);
         const now = Date.now();
 
         // Rage-click detection (rapid repeated clicks).
@@ -104,7 +190,7 @@ export class Tracker {
           return;
         }
 
-        if (ctaSet.has(el) || (!manual && el.tagName === 'BUTTON')) {
+        if (this.ctas.has(el) || (this.forms === null && el.tagName === 'BUTTON')) {
           this.emit('cta_click', { sel: stableSelector(el) });
         }
       },
@@ -112,10 +198,7 @@ export class Tracker {
     );
   }
 
-  private trackForms(map: PageMap): void {
-    const forms = hasManualMapping()
-      ? new Set(map.nodes.filter((n) => n.role === 'form').map((n) => safeQuery(n.selector)))
-      : null;
+  private trackForms(): void {
     // Never capture values — only lifecycle signals.
     document.addEventListener(
       'focusin',
@@ -123,8 +206,8 @@ export class Tracker {
         const el = e.target as Element | null;
         if (!el || this.isIgnored(el)) return;
         const form = el.closest('form');
-        if (form && (!forms || forms.has(form)) && !form.hasAttribute('data-lo-started')) {
-          form.setAttribute('data-lo-started', '1');
+        if (form && (!this.forms || this.forms.has(form)) && !this.formSeen.has(form)) {
+          this.formSeen.add(form);
           this.emit('form_start', { sel: stableSelector(form) });
         }
       },
@@ -133,18 +216,22 @@ export class Tracker {
     document.addEventListener(
       'submit',
       (e) => {
-        const form = e.target as Element | null;
-        if (!form || this.isIgnored(form) || (forms && !forms.has(form))) return;
-        this.emit('form_submit', { sel: stableSelector(form) });
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement) || this.isIgnored(form)) return;
+        const sel = stableSelector(form);
+        this.confirmations.arm(this.path, sel);
+        if (!this.forms || this.forms.has(form)) this.emit('form_submit', { sel });
       },
       { capture: true },
     );
   }
 
   private trackSectionVisibility(map: PageMap): void {
+    this.sectionObserver?.disconnect();
     if (typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(
       (entries) => {
+        if (this.sectionObserver !== io) return;
         for (const entry of entries) {
           if (entry.isIntersecting && !this.sectionSeen.has(entry.target)) {
             this.sectionSeen.add(entry.target);
@@ -159,6 +246,7 @@ export class Tracker {
       },
       { threshold: 0.4 },
     );
+    this.sectionObserver = io;
     for (const node of map.nodes) {
       const el = safeQuery(node.selector);
       if (el) io.observe(el);
@@ -177,23 +265,14 @@ export class Tracker {
     });
   }
 
-  private trackHover(map: PageMap): void {
-    try {
-      const hover = new HoverTracker((entry) =>
-        this.emit('hover', { sel: entry.sel, dw: entry.dw }),
-      );
-      hover.init(map.nodes);
-    } catch {
-      /* attention tracking is best-effort */
-    }
-  }
-
   private sendPageMap(map: PageMap): void {
     try {
       if (map.nodes.length === 0) return;
-      this.emit('page_map', {
-        p: { path: map.path, counts: map.counts, nodes: map.nodes.slice(0, 60) },
-      });
+      const payload = { path: map.path, counts: map.counts, nodes: map.nodes.slice(0, 60) };
+      const serialized = JSON.stringify(payload);
+      if (serialized === this.mapPayload) return;
+      this.mapPayload = serialized;
+      this.emit('page_map', { p: payload });
     } catch {
       /* structural mapping is best-effort */
     }

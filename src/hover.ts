@@ -54,8 +54,7 @@ export class HoverTracker {
 
   /** Wire listeners. `nodes` is the already-built page map for this page. */
   init(nodes: MappedNode[]): void {
-    this.indexNodes(nodes);
-    if (this.elementToSelector.size === 0) return;
+    this.setNodes(nodes);
 
     document.addEventListener(
       'mousemove',
@@ -72,7 +71,8 @@ export class HoverTracker {
     window.addEventListener('pagehide', () => this.flush());
   }
 
-  private indexNodes(nodes: MappedNode[]): void {
+  setNodes(nodes: MappedNode[]): void {
+    this.elementToSelector.clear();
     for (const node of nodes) {
       const el = safeQuery(node.selector);
       if (el && !this.elementToSelector.has(el)) {
@@ -104,7 +104,7 @@ export class HoverTracker {
     return null;
   }
 
-  private flush(): void {
+  flush(): void {
     for (const entry of this.aggregator.drain()) this.emit(entry);
   }
 }
