@@ -15,8 +15,8 @@ it('uses manual identities for the map, nested CTA clicks, forms and section vis
   vi.useFakeTimers();
   document.body.innerHTML = `
     <section data-lo-role="hero" data-lo-id="hero">
-      <a href="/go" data-lo-role="cta" data-lo-id="hero-signup"><span>Começar</span></a>
-      <button>Menu</button>
+      <a href="/go?secret=value#section" data-lo-role="cta" data-lo-id="hero-signup"><span>Começar</span></a>
+      <button data-lo-destination="/go" data-lo-group="catalog-actions">Menu</button>
       <form data-lo-role="form" data-lo-id="signup-form"><input></form>
       <form id="unmarked"><input></form>
     </section>`;
@@ -31,14 +31,20 @@ it('uses manual identities for the map, nested CTA clicks, forms and section vis
     observe() {}
   });
   const events: WireEvent[] = [];
-  new Tracker({ enqueue: (event: WireEvent) => events.push(event) } as unknown as Transport).init();
+  const tracker = new Tracker({ enqueue: (event: WireEvent) => events.push(event) } as unknown as Transport);
+  tracker.init();
+  tracker.setJourney({ steps: ['/', '/go'] });
   const fire = (type: string, target: Element) => {
-    (handlers.get(type) as EventListener)({ target } as unknown as Event);
+    (handlers.get(type) as EventListener)({ target, isTrusted: true, button: 0 } as unknown as Event);
   };
   fire('click', document.querySelector('span')!);
   fire('click', document.querySelector('button')!);
   expect(events.filter((e) => e.n === 'cta_click').map((e) => e.sel))
     .toEqual(['[data-lo-id="hero-signup"]']);
+  expect(events.filter((e) => e.n === 'navigation_click')).toMatchObject([
+    { sel: '[data-lo-id="hero-signup"]', p: { destination: '/go' } },
+    { p: { destination: '/go', group: 'catalog-actions' } },
+  ]);
   fire('focusin', document.querySelector('input')!);
   fire('focusin', document.querySelector('input')!);
   fire('submit', document.querySelector('form')!);

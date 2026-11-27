@@ -7,11 +7,12 @@ import {
   detectLanguage,
   viewportBucket,
 } from './detect';
-import { ExperimentEngine } from './experiments';
+import { bucket, ExperimentEngine } from './experiments';
 import { getSessionId } from './session';
 import { Tracker } from './tracker';
 import { Transport } from './transport';
 import { sanitizeProps } from './sanitize';
+import { connectDataLayer } from './global-events';
 import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
 
 /**
@@ -26,7 +27,8 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
     // Must be resolved synchronously while document.currentScript is valid.
     const scriptSrc = sdkScriptSrc();
 
-    if (Math.random() >= config.sampling) {
+    const sid = config.sampling > 0 ? getSessionId() : '';
+    if (!sid || (config.sampling < 1 && bucket(`${config.siteId}:${sid}:analytics`) >= config.sampling)) {
       // Not sampled: still expose a no-op API so customer calls don't error.
       installNoopApi();
       onReady(() => {
@@ -36,7 +38,6 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
       return;
     }
 
-    const sid = getSessionId();
     const device = detectDevice();
 
     const ctx = (): WireContext => ({
@@ -50,11 +51,12 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
 
     const eventBaseAt = Date.now();
     const transport = new Transport(config, ctx, () => sid, eventBaseAt);
-    const tracker = new Tracker(transport, eventBaseAt);
+    const tracker = new Tracker(transport, eventBaseAt, { siteId: config.siteId, sid });
 
     // Public API — replace the loader stub and drain any queued calls.
     const existing = window.LandingOptimizer;
     const api: LandingOptimizerApi = {
+      getSessionId: () => sid,
       track: (name, payload) => tracker.track(name, payload),
       conversion: (goal, payload) => tracker.conversion(goal, payload),
       identifyCompanyContext: (payload) => {
@@ -78,7 +80,15 @@ import type { LandingOptimizerApi, SdkConfig, WireContext } from './types';
       const engine = new ExperimentEngine(config, sid, device, (exp, variant) =>
         tracker.exposure(exp, variant),
       );
-      void engine.run(false, (site) => tracker.setConfirmationRules(site.confirmationRules ?? []));
+      void engine.run(false, (site) => {
+        tracker.setConfirmationRules(site.confirmationRules ?? []);
+        tracker.setJourney(site.journey);
+        if (site.journey?.globalEvent) {
+          try {
+            connectDataLayer(site.journey.globalEvent, (goal, transactionId) => tracker.globalConversion(goal, transactionId));
+          } catch { /* the host may own a read-only data layer */ }
+        }
+      });
 
       // Operator-only snapshot capture: lazy-load the separate capture bundle
       // when the page is opened with ?lo_capture=1. Real visitors never hit

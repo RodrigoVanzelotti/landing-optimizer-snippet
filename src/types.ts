@@ -15,6 +15,7 @@ export type EventName =
   | 'page_view'
   | 'scroll_depth'
   | 'cta_click'
+  | 'navigation_click'
   | 'dead_click'
   | 'rage_click'
   | 'form_start'
@@ -26,6 +27,7 @@ export type EventName =
   | 'dropoff'
   | 'exposure'
   | 'conversion'
+  | 'global_conversion'
   | 'company_context'
   | 'page_map';
 
@@ -124,6 +126,7 @@ export interface SiteConfig {
   sampling: number;
   experiments: ConfigExperiment[];
   confirmationRules?: ConfirmationRule[];
+  journey?: { steps: string[]; globalEvent?: { source: string; goal: string } };
   /** base64 Ed25519 signature over the canonical config minus `sig`. */
   sig: string;
 }
@@ -164,6 +167,8 @@ export interface SnapshotEnvelope {
 
 /** Public window API surface. */
 export interface LandingOptimizerApi {
+  /** Optional first-party handoff to a server conversion. */
+  getSessionId?(): string | undefined;
   q?: unknown[][];
   track(eventName: string, payload?: Record<string, unknown>): void;
   identifyCompanyContext(payload: Record<string, unknown>): void;

@@ -73,6 +73,8 @@ it('tracks a late-mounted SPA form and sends one matching confirmation with the 
   expect(envelopes.flatMap(envelope =>
     envelope.events.filter(event => event.n === 'page_view').map(() => envelope.ctx.path),
   )).toEqual(['/', '/signup']);
+  expect(envelopes.find(envelope => envelope.ctx.path === '/signup')?.events[0])
+    .toMatchObject({ n: 'page_view', p: { previousPath: '/' } });
   expect(envelopes.find(envelope => envelope.events.some(event => event.n === 'exposure'))).toMatchObject({
     sid: 'test-session', ctx: { path: '/' },
   });
